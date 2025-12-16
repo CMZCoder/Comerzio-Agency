@@ -24,14 +24,14 @@ app.get('/health', (req, res) => {
     res.status(200).send('OK: Server is healthy');
 });
 
-// Content Security Policy (CSP) Configuration - Temporarily disabled
-// app.use((req, res, next) => {
-//     res.setHeader(
-//         'Content-Security-Policy',
-//         "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://trusted.cdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https:;"
-//     );
-//     next();
-// });
+// Override Hostinger's restrictive CSP - allow necessary features
+app.use((req, res, next) => {
+    res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https:;"
+    );
+    next();
+});
 
 // Validation helpers
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
