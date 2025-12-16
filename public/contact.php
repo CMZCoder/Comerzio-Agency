@@ -120,13 +120,14 @@ if ($mailSent) {
     </body>
     </html>
     ";
-    
+
     $confirmHeaders = "MIME-Version: 1.0\r\n";
     $confirmHeaders .= "Content-Type: text/html; charset=UTF-8\r\n";
     $confirmHeaders .= "From: Commerzio <noreply@commerzio.online>\r\n";
-    
+    $confirmHeaders .= "Reply-To: Commerzio Sales <sales@commerzio.online>\r\n";
+
     mail($email, $confirmSubject, $confirmBody, $confirmHeaders);
-    
+
     http_response_code(200);
     echo json_encode(['success' => true, 'message' => 'Message sent successfully!']);
 } else {
