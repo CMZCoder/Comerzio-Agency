@@ -127,6 +127,34 @@ h4 {
   box-shadow: 0 0 10px var(--accent-blue-glow);
 }
 
+/* Animated Gradient Title - 4s loop */
+.animated-gradient-title {
+  background: linear-gradient(90deg,
+      #fff 0%,
+      #fff 20%,
+      var(--accent-blue) 40%,
+      var(--accent-gold) 60%,
+      #fff 80%,
+      #fff 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 4s ease-in-out infinite;
+}
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
 /* Layout Utilities */
 .container {
   width: 100%;

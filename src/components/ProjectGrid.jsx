@@ -99,7 +99,7 @@ const ProjectGrid = () => {
         <section className="projects-section">
             <div className="container">
                 <h2 className="section-title">
-                    <span className="text-gradient">{t('projects_title')}</span>
+                    <span className="animated-gradient-title">{t('projects_title')}</span>
                 </h2>
 
                 <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
