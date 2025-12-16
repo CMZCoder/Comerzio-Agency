@@ -24,14 +24,14 @@ app.get('/health', (req, res) => {
     res.status(200).send('OK: Server is healthy');
 });
 
-// Content Security Policy (CSP) Configuration
-app.use((req, res, next) => {
-    res.setHeader(
-        'Content-Security-Policy',
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://trusted.cdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https:;"
-    );
-    next();
-});
+// Content Security Policy (CSP) Configuration - Temporarily disabled
+// app.use((req, res, next) => {
+//     res.setHeader(
+//         'Content-Security-Policy',
+//         "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://trusted.cdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https:;"
+//     );
+//     next();
+// });
 
 // Validation helpers
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -149,21 +149,28 @@ app.use(express.static(join(__dirname, 'dist'), {
 
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
+    console.log(`Serving ${req.path}`);
+
     // If the request is for an asset (js, css, png, etc.) that wasn't found in dist, return 404
-    if (req.path.includes('.')) {
+    if (req.path.includes('.') && !req.path.endsWith('.html')) {
+        console.log(`Asset not found: ${req.path}`);
         return res.status(404).send('File not found');
     }
 
-    // Safety: Check if index.html exists before trying to send it
-    // This prevents the server from crashing if the build failed
+    // Serve index.html for all other routes (SPA)
     const indexPath = join(__dirname, 'dist', 'index.html');
-    import('fs').then(fs => {
-        if (!fs.existsSync(indexPath)) {
-            console.error("CRITICAL: dist/index.html not found! Build might have failed.");
-            return res.status(500).send('<h1>Server Error: Build Artifacts Missing</h1><p>Please check if "npm run build" ran successfully.</p>');
-        }
-        res.sendFile(indexPath);
-    });
+
+    try {
+        res.sendFile(indexPath, (err) => {
+            if (err) {
+                console.error(`Error serving index.html: ${err.message}`);
+                res.status(500).send('<h1>Server Error</h1><p>Could not load the application.</p>');
+            }
+        });
+    } catch (error) {
+        console.error(`Critical error: ${error.message}`);
+        res.status(500).send('<h1>Server Error</h1>');
+    }
 });
 
 app.listen(PORT, () => {
