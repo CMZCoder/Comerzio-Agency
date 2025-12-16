@@ -88,7 +88,7 @@ $htmlBody = "
 $headers = "MIME-Version: 1.0\r\n";
 $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
 $headers .= "From: Commerzio Website <noreply@commerzio.online>\r\n";
-$headers .= "Reply-To: $name <$email>\r\n";
+$headers .= "Reply-To: sales@commerzio.online\r\n";
 
 // Send main email
 $mailSent = mail($to, $subject, $htmlBody, $headers);
@@ -124,7 +124,6 @@ if ($mailSent) {
     $confirmHeaders = "MIME-Version: 1.0\r\n";
     $confirmHeaders .= "Content-Type: text/html; charset=UTF-8\r\n";
     $confirmHeaders .= "From: Commerzio <noreply@commerzio.online>\r\n";
-    $confirmHeaders .= "Reply-To: Commerzio Sales <sales@commerzio.online>\r\n";
 
     mail($email, $confirmSubject, $confirmBody, $confirmHeaders);
 
