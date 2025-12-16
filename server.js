@@ -18,6 +18,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// 1. Health Check (Critical for deployment troubleshooting)
+// If this returns 200, the server IS running.
+app.get('/health', (req, res) => {
+    res.status(200).send('OK: Server is healthy');
+});
+
 // Content Security Policy (CSP) Configuration
 app.use((req, res, next) => {
     res.setHeader(
@@ -144,11 +150,20 @@ app.use(express.static(join(__dirname, 'dist'), {
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
     // If the request is for an asset (js, css, png, etc.) that wasn't found in dist, return 404
-    // This prevents serving index.html for missing scripts which causes "MIME type" errors
     if (req.path.includes('.')) {
         return res.status(404).send('File not found');
     }
-    res.sendFile(join(__dirname, 'dist', 'index.html'));
+
+    // Safety: Check if index.html exists before trying to send it
+    // This prevents the server from crashing if the build failed
+    const indexPath = join(__dirname, 'dist', 'index.html');
+    import('fs').then(fs => {
+        if (!fs.existsSync(indexPath)) {
+            console.error("CRITICAL: dist/index.html not found! Build might have failed.");
+            return res.status(500).send('<h1>Server Error: Build Artifacts Missing</h1><p>Please check if "npm run build" ran successfully.</p>');
+        }
+        res.sendFile(indexPath);
+    });
 });
 
 app.listen(PORT, () => {

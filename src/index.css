@@ -258,69 +258,56 @@ h4 {
 .hero-char {
   display: inline-block;
   opacity: 1;
-  /* Always lit */
   color: inherit;
   transform: translateZ(0);
-  animation: mirror-sweep 6s infinite linear;
-  /* Slower loop for elegance */
+  animation: lightning-strike 5s infinite linear;
+  /* Faster, erratic loop */
   background: inherit;
   background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
 }
 
-/* We removed .text-gradient class usage in component, so no need for override unless sticky. */
-/* But let's define mirror-sweep */
+@keyframes lightning-strike {
 
-@keyframes mirror-sweep {
-  0% {
-    filter: brightness(1);
-    text-shadow: none;
-    transform: scale(1);
-  }
-
-  5% {
-    filter: brightness(1.7) contrast(1.2);
-    /* Bright flash */
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.6);
-    transform: scale(1.05);
-  }
-
-  15% {
-    filter: brightness(1);
-    text-shadow: none;
-    transform: scale(1);
-  }
-
+  0%,
+  90%,
   100% {
     filter: brightness(1);
     text-shadow: none;
     transform: scale(1);
   }
-}
 
-@keyframes reveal-gradient {
-  0% {
-    opacity: 0;
-    transform: scale(0.9);
-    text-shadow: 0 0 0 rgba(59, 130, 246, 0);
-    /* Start transparent, which it is already */
+  91% {
+    filter: brightness(2) contrast(1.5);
+    text-shadow: 0 0 10px #fff, 0 0 20px var(--accent-blue);
+    color: #fff;
   }
 
-  20% {
-    opacity: 1;
-    /* Flash white? No, keep gradient but maybe brightness up? */
-    /* If we set color: #fff here it hides gradient. */
-    /* Let's just shadow flash */
-    text-shadow: 0 0 30px var(--accent-blue), 0 0 60px var(--accent-gold);
+  92% {
+    filter: brightness(1);
+    text-shadow: none;
+    color: inherit;
+  }
+
+  93% {
+    filter: brightness(4) contrast(2);
+    text-shadow: 0 0 30px #fff, 0 0 60px var(--accent-blue), 0 0 90px var(--accent-gold);
+    color: #fff;
+    transform: scale(1.02);
+  }
+
+  94% {
+    filter: brightness(1);
+    text-shadow: none;
+    color: inherit;
     transform: scale(1);
   }
 
-  100% {
-    opacity: 1;
-    transform: none;
-    text-shadow: 0 0 0 transparent;
-    color: transparent;
+  96% {
+    filter: brightness(3) contrast(1.5);
+    text-shadow: 0 0 20px #fff, 0 0 40px var(--accent-blue);
+    color: #fff;
   }
 }
 
@@ -329,7 +316,7 @@ h4 {
   color: var(--text-secondary);
   max-width: 600px;
   margin: 0 auto 3rem;
-  font-weight: 300;
+  font-weight: 500;
 }
 
 .hero-actions {
@@ -345,13 +332,13 @@ h4 {
 }
 
 .subtitle-gradient {
-  background: linear-gradient(90deg, #a0a0a0, #fff, #D4AF37, #a0a0a0);
+  background: linear-gradient(90deg, #ffffff, var(--accent-blue), var(--accent-gold), #ffffff);
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: shimmer-text 8s infinite linear;
+  animation: shimmer-text 6s infinite linear;
 }
 
 @keyframes shimmer-text {
