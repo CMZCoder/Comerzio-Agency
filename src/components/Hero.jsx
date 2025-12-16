@@ -1,0 +1,165 @@
+import React from 'react';
+import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
+import ContactShatterButton from './ContactShatterButton';
+import SpaceBackground from './SpaceBackground';
+
+const Hero = () => {
+    const { t } = useTranslation();
+
+    return (
+        <section className="hero-section">
+            {/* Background Decor */}
+            {/* Background Decor */}
+            <SpaceBackground />
+
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className="hero-content"
+            >
+                <motion.span
+                    className="coming-soon-badge"
+                    animate={{
+                        scale: [1, 1.05, 1, 1.05, 1],
+                        borderColor: ["#b8860b", "#fff", "#b8860b", "#fff", "#b8860b"],
+                        boxShadow: [
+                            "0 0 0 rgba(212, 175, 55, 0)",
+                            "0 0 20px rgba(212, 175, 55, 0.6)",
+                            "0 0 0 rgba(212, 175, 55, 0)",
+                            "0 0 20px rgba(212, 175, 55, 0.6)",
+                            "0 0 0 rgba(212, 175, 55, 0)"
+                        ]
+                    }}
+                    transition={{
+                        duration: 3,
+                        times: [0, 0.1, 0.2, 0.3, 0.5], // The "lub-dub" rhythm
+                        repeat: Infinity,
+                        repeatDelay: 1
+                    }}
+                >
+                    {t('coming_soon')}
+                </motion.span>
+                <br />
+                <span className="hero-agency-name">
+                    {t('agency_name')}
+                </span>
+
+                <h1 className="hero-title">
+                    <AnimatedText
+                        text={t('hero_title').split(' ').slice(0, -1).join(' ')}
+                        className="text-gradient"
+                    />
+                    <br />
+                    <AnimatedText
+                        text={t('hero_title').split(' ').slice(-1)[0]}
+                        className=""
+                        style={{ color: '#fff' }}
+                        delayOffset={t('hero_title').split(' ').slice(0, -1).join(' ').length * 0.05}
+                    />
+                </h1>
+
+                {/* Helper Component for Animation */}
+                {/* Putting it here inside the component file for simplicity, or could be separate */}
+                {/* But since it's just for Hero, this is fine. */}
+                {/* Note: In a larger app, extract to separate file. */}
+
+                <p className="hero-subtitle">
+                    <SparkleSubtitle text={t('hero_subtitle')} />
+                </p>
+
+                <motion.div
+                    className="hero-actions"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.5, duration: 0.8 }}
+                >
+                    <a href="#projects" className="btn btn-primary btn-rotate-glow">
+                        {t('view_projects')}
+                    </a>
+
+                    <ContactShatterButton />
+                </motion.div>
+            </motion.div>
+        </section>
+    );
+};
+
+const AnimatedText = ({ text, className = "", style = {}, delayOffset = 0 }) => {
+    // Split text into array of characters
+    const letters = Array.from(text);
+
+    return (
+        <span className={`${className}`} style={{ display: "inline-block", ...style }}>
+            {letters.map((char, index) => (
+                <span
+                    key={index}
+                    className="hero-char"
+                    style={{
+                        animationDelay: `${delayOffset + index * 0.05}s`,
+                    }}
+                >
+                    {char === " " ? "\u00A0" : char}
+                </span>
+            ))}
+        </span>
+    );
+};
+
+const SparkleSubtitle = ({ text }) => {
+    // Generate constant random positions for sparkles so they don't jump on re-render
+    // Using a fixed count of sparkles (e.g., 5)
+    // We can't strictly use random inside render without useMemo/useState, 
+    // but for this simple effect, constant positions working is key.
+    const sparkles = React.useMemo(() => {
+        return Array.from({ length: 5 }).map((_, i) => ({
+            id: i,
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 100}%`,
+            delay: Math.random() * 2,
+            scale: 0.5 + Math.random() * 0.5
+        }));
+    }, []);
+
+    return (
+        <span className="hero-subtitle-container">
+            <span className="subtitle-gradient">
+                {text}
+            </span>
+            {sparkles.map((s) => (
+                <motion.span
+                    key={s.id}
+                    style={{
+                        position: 'absolute',
+                        top: s.top,
+                        left: s.left,
+                        color: '#FFD700', // Gold
+                        pointerEvents: 'none',
+                        zIndex: 2,
+                        width: '4px',
+                        height: '4px',
+                    }}
+                    animate={{
+                        opacity: [0, 1, 0],
+                        scale: [0, s.scale, 0],
+                        rotate: [0, 45, 0]
+                    }}
+                    transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        delay: s.delay,
+                        ease: "easeInOut"
+                    }}
+                >
+                    {/* SVG Star for specific shape */}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0L14 10L24 12L14 14L12 24L10 14L0 12L10 10z" />
+                    </svg>
+                </motion.span>
+            ))}
+        </span>
+    );
+};
+
+export default Hero;
