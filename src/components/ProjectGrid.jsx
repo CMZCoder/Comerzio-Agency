@@ -28,7 +28,7 @@ const projects = [
         title: 'Officina del Gusto',
         descriptionKey: 'officina_desc',
         url: 'https://officinadelgusto.ro',
-        images: ['/assets/Officinadelgusto.png', '/assets/Officinadelgusto2.png'],
+        images: ['/assets/Officinadelgusto.png', '/assets/Officinadelgusto2.png', '/assets/OOfficinadelgusto3.png'],
         stackKeys: ['React', 'Firebase', 'Stripe', 'tech_ordering'],
         color: '#ff6b6b'
     }
