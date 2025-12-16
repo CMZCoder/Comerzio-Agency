@@ -7,6 +7,20 @@ import Footer from './components/Footer';
 import SEO from './components/SEO';
 
 function App() {
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const header = document.querySelector('.app-header');
+      if (window.scrollY > 50) {
+        header?.classList.add('scrolled');
+      } else {
+        header?.classList.remove('scrolled');
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <div className="app-root">
       <SEO />
