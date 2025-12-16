@@ -102,7 +102,7 @@ const ProjectGrid = () => {
                     <span className="text-gradient">{t('projects_title')}</span>
                 </h2>
 
-                <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+                <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
                     {projects.map((project, index) => (
                         <ProjectCard key={project.id} project={project} index={index} />
                     ))}

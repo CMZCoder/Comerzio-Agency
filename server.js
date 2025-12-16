@@ -6,6 +6,9 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 dotenv.config();
 
 const app = express();
@@ -14,6 +17,15 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Content Security Policy (CSP) Configuration
+app.use((req, res, next) => {
+    res.setHeader(
+        'Content-Security-Policy',
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://trusted.cdn.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https:;"
+    );
+    next();
+});
 
 // Validation helpers
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -116,6 +128,27 @@ ${message}
         console.error('Email sending failed:', error);
         res.status(500).json({ error: 'Failed to send message. Please try again later.' });
     }
+});
+
+
+// Serve static files from the dist directory
+// Serve static files from the dist directory with explicit MIME type handling
+app.use(express.static(join(__dirname, 'dist'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
+    }
+}));
+
+// Handle React routing, return all requests to React app
+app.get('*', (req, res) => {
+    // If the request is for an asset (js, css, png, etc.) that wasn't found in dist, return 404
+    // This prevents serving index.html for missing scripts which causes "MIME type" errors
+    if (req.path.includes('.')) {
+        return res.status(404).send('File not found');
+    }
+    res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
