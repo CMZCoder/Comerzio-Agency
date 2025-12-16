@@ -138,14 +138,9 @@ ${message}
 
 
 // Serve static files from the dist directory
-// Serve static files from the dist directory with explicit MIME type handling
-app.use(express.static(join(__dirname, 'dist'), {
-    setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.js')) {
-            res.setHeader('Content-Type', 'application/javascript');
-        }
-    }
-}));
+const distPath = join(__dirname, 'dist');
+console.log(`Serving static files from: ${distPath}`);
+app.use(express.static(distPath));
 
 // Handle React routing, return all requests to React app
 app.get('*', (req, res) => {
