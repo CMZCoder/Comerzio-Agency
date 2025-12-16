@@ -26,13 +26,13 @@ const SpaceBackground = () => {
         const speed = 0.2; // Slightly faster
         const depth = 1800; // Slightly less deep
 
-        // Initialize stars
+        // Initialize stars - spread across entire screen
         for (let i = 0; i < numStars; i++) {
             stars.push({
-                x: Math.random() * width - width / 2,
-                y: Math.random() * height - height / 2,
+                x: (Math.random() - 0.5) * width * 3, // Much wider spread
+                y: (Math.random() - 0.5) * height * 3, // Much taller spread
                 z: Math.random() * depth,
-                o: Math.random() * 0.4 + 0.4 // Higher base opacity (0.4 to 0.8)
+                o: Math.random() * 0.4 + 0.4
             });
         }
 
@@ -56,8 +56,8 @@ const SpaceBackground = () => {
                 // Reset moves to back
                 if (star.z <= 0) {
                     star.z = depth;
-                    star.x = Math.random() * width - width / 2;
-                    star.y = Math.random() * height - height / 2;
+                    star.x = (Math.random() - 0.5) * width * 3;
+                    star.y = (Math.random() - 0.5) * height * 3;
                 }
 
                 // Project 3D -> 2D with reduced scaling for less warp
