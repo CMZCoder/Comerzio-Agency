@@ -88,15 +88,10 @@ const ContactShatterButton = () => {
     const HEIGHT = 80;
 
     // STATE LIFTED OUT OF EFFECT
-    const [tree, setTree] = useState({ trunkD: "", branches: [] });
+    const [tree, setTree] = useState(() => generateLightningTree(WIDTH, HEIGHT));
     const [isFormOpen, setIsFormOpen] = useState(false);
 
     useEffect(() => {
-        if (!tree.trunkD) {
-            setTree(generateLightningTree(WIDTH, HEIGHT));
-            return;
-        }
-
         const ctx = gsap.context(() => {
             const tl = gsap.timeline({
                 onComplete: () => {

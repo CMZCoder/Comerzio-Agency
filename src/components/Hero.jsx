@@ -6,6 +6,8 @@ import SpaceBackground from './SpaceBackground';
 
 const Hero = () => {
     const { t } = useTranslation();
+    const MotionDiv = motion.div;
+    const MotionSpan = motion.span;
 
     return (
         <section className="hero-section">
@@ -13,13 +15,13 @@ const Hero = () => {
             {/* Background Decor */}
             <SpaceBackground />
 
-            <motion.div
+            <MotionDiv
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, ease: "easeOut" }}
                 className="hero-content"
             >
-                <motion.span
+                <MotionSpan
                     className="coming-soon-badge"
                     animate={{
                         scale: [1, 1.05, 1, 1.05, 1],
@@ -40,7 +42,7 @@ const Hero = () => {
                     }}
                 >
                     {t('coming_soon')}
-                </motion.span>
+                </MotionSpan>
                 <br />
                 <span className="hero-agency-name">
                     {t('agency_name')}
@@ -70,7 +72,7 @@ const Hero = () => {
                     <SparkleSubtitle text={t('hero_subtitle')} />
                 </p>
 
-                <motion.div
+                <MotionDiv
                     className="hero-actions"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -96,8 +98,8 @@ const Hero = () => {
                     </button>
 
                     <ContactShatterButton />
-                </motion.div>
-            </motion.div>
+                </MotionDiv>
+            </MotionDiv>
         </section>
     );
 };
@@ -128,7 +130,7 @@ const SparkleSubtitle = ({ text }) => {
     // Using a fixed count of sparkles (e.g., 5)
     // We can't strictly use random inside render without useMemo/useState, 
     // but for this simple effect, constant positions working is key.
-    const sparkles = React.useMemo(() => {
+    const [sparkles] = React.useState(() => {
         return Array.from({ length: 5 }).map((_, i) => ({
             id: i,
             top: `${Math.random() * 100}%`,

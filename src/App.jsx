@@ -1,6 +1,7 @@
 import React from 'react';
 import LanguageSelector from './components/LanguageSelector';
 import Hero from './components/Hero';
+import AgencySections from './components/AgencySections';
 import ProjectGrid from './components/ProjectGrid';
 import Footer from './components/Footer';
 
@@ -33,6 +34,7 @@ function App() {
 
       <main>
         <Hero />
+        <AgencySections />
         <div id="projects">
           <ProjectGrid />
         </div>

@@ -7,6 +7,7 @@ import './ContactForm.css';
 
 const ContactForm = ({ onClose }) => {
     const { t } = useTranslation();
+    const MotionDiv = motion.div;
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -40,7 +41,7 @@ const ContactForm = ({ onClose }) => {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = t('invalid_email');
 
         // Phone: optional, phone format
-        if (formData.phone && !/^[\d\+\-\(\) ]{7,}$/.test(formData.phone)) {
+        if (formData.phone && !/^[\d+() -]{7,}$/.test(formData.phone)) {
             newErrors.phone = t('invalid_phone');
         }
 
@@ -82,7 +83,7 @@ const ContactForm = ({ onClose }) => {
                 throw new Error(`Server Error: ${response.status} ${text.slice(0, 100)}`);
             }
 
-            const data = await response.json();
+            await response.json();
 
             setShowSuccess(true);
             setTimeout(() => {
@@ -97,14 +98,14 @@ const ContactForm = ({ onClose }) => {
     };
 
     return (
-        <motion.div
+        <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="contact-modal-overlay"
             onClick={onClose} // Click outside to close
         >
-            <motion.div
+            <MotionDiv
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -127,7 +128,7 @@ const ContactForm = ({ onClose }) => {
 
                     <AnimatePresence mode="wait">
                         {showSuccess ? (
-                            <motion.div
+                            <MotionDiv
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
@@ -140,7 +141,7 @@ const ContactForm = ({ onClose }) => {
                                 <p className="success-message">
                                     {t('thank_you_contact')}
                                 </p>
-                            </motion.div>
+                            </MotionDiv>
                         ) : (
                             <form onSubmit={handleSubmit}>
                                 {/* Name Input */}
@@ -253,8 +254,8 @@ const ContactForm = ({ onClose }) => {
                         )}
                     </AnimatePresence>
                 </div>
-            </motion.div>
-        </motion.div >
+            </MotionDiv>
+        </MotionDiv >
     );
 };
 

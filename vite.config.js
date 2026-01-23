@@ -12,4 +12,20 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('three')) return 'three';
+            if (id.includes('framer-motion')) return 'motion';
+            if (id.includes('gsap')) return 'gsap';
+            if (id.includes('react')) return 'react';
+            return 'vendor';
+          }
+          return undefined;
+        },
+      },
+    },
+  },
 })
