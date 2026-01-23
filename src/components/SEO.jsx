@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 import { useTranslation } from 'react-i18next';
 
 const SEO = () => {
-    const { t, i18n } = useTranslation();
+    const { i18n } = useTranslation();
 
     // Default SEO values
     const title = "Commerzio Agentur | Premium Web Development & AI Solutions";

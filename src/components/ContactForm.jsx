@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Send, Loader2, CheckCircle2, ShieldCheck, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import './ContactForm.css';
 
 const ContactForm = ({ onClose }) => {
     const { t } = useTranslation();
+    const MotionDiv = motion.div;
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -16,6 +17,7 @@ const ContactForm = ({ onClose }) => {
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [website, setWebsite] = useState('');
 
     // Close on Escape key
     React.useEffect(() => {
@@ -40,7 +42,7 @@ const ContactForm = ({ onClose }) => {
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = t('invalid_email');
 
         // Phone: optional, phone format
-        if (formData.phone && !/^[\d\+\-\(\) ]{7,}$/.test(formData.phone)) {
+        if (formData.phone && !/^[\d+() -]{7,}$/.test(formData.phone)) {
             newErrors.phone = t('invalid_phone');
         }
 
@@ -65,6 +67,14 @@ const ContactForm = ({ onClose }) => {
         e.preventDefault();
         if (!validate()) return;
 
+        if (website) {
+            setShowSuccess(true);
+            setTimeout(() => {
+                onClose();
+            }, 1500);
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -78,11 +88,10 @@ const ContactForm = ({ onClose }) => {
             });
 
             if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`Server Error: ${response.status} ${text.slice(0, 100)}`);
+                throw new Error('Submission failed');
             }
 
-            const data = await response.json();
+            await response.json();
 
             setShowSuccess(true);
             setTimeout(() => {
@@ -90,21 +99,21 @@ const ContactForm = ({ onClose }) => {
             }, 3000); // Close after 3 seconds of success message
         } catch (error) {
             console.error(error);
-            setErrors(prev => ({ ...prev, submit: error.message }));
+            setErrors(prev => ({ ...prev, submit: 'Something went wrong. Please try again.' }));
         } finally {
             setIsSubmitting(false);
         }
     };
 
     return (
-        <motion.div
+        <MotionDiv
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="contact-modal-overlay"
             onClick={onClose} // Click outside to close
         >
-            <motion.div
+            <MotionDiv
                 initial={{ scale: 0.95, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -124,10 +133,20 @@ const ContactForm = ({ onClose }) => {
                     <p className="modal-subtitle">
                         {t('contact_subtitle')}
                     </p>
+                    <div className="contact-assurance">
+                        <div>
+                            <ShieldCheck size={18} />
+                            <span>We never share your details.</span>
+                        </div>
+                        <div>
+                            <Lock size={18} />
+                            <span>Encrypted delivery and private handling.</span>
+                        </div>
+                    </div>
 
                     <AnimatePresence mode="wait">
                         {showSuccess ? (
-                            <motion.div
+                            <MotionDiv
                                 initial={{ opacity: 0, scale: 0.8 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.8 }}
@@ -140,9 +159,22 @@ const ContactForm = ({ onClose }) => {
                                 <p className="success-message">
                                     {t('thank_you_contact')}
                                 </p>
-                            </motion.div>
+                            </MotionDiv>
                         ) : (
                             <form onSubmit={handleSubmit}>
+                                <label className="form-label visually-hidden" htmlFor="company-website">
+                                    Website
+                                </label>
+                                <input
+                                    id="company-website"
+                                    type="text"
+                                    name="website"
+                                    value={website}
+                                    onChange={(e) => setWebsite(e.target.value)}
+                                    autoComplete="off"
+                                    className="visually-hidden"
+                                    tabIndex={-1}
+                                />
                                 {/* Name Input */}
                                 <div className="form-group">
                                     <label className="form-label">
@@ -253,8 +285,8 @@ const ContactForm = ({ onClose }) => {
                         )}
                     </AnimatePresence>
                 </div>
-            </motion.div>
-        </motion.div >
+            </MotionDiv>
+        </MotionDiv >
     );
 };
 

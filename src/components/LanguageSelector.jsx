@@ -16,6 +16,7 @@ const languages = [
 const LanguageSelector = () => {
     const { i18n } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
+    const MotionDiv = motion.div;
 
     const currentLang = languages.find(l => l.code === i18n.language) || languages[0];
 
@@ -62,7 +63,7 @@ const LanguageSelector = () => {
             {/* Dropdown */}
             <AnimatePresence>
                 {isOpen && (
-                    <motion.div
+                    <MotionDiv
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
@@ -91,7 +92,7 @@ const LanguageSelector = () => {
                                 {lang.label}
                             </button>
                         ))}
-                    </motion.div>
+                    </MotionDiv>
                 )}
             </AnimatePresence>
         </div>

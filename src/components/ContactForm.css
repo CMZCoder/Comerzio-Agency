@@ -21,7 +21,7 @@
     border-radius: 20px;
     width: 100%;
     max-width: 500px;
-    box-shadow: 0 0 50px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 0 60px rgba(59, 130, 246, 0.2), inset 0 0 40px rgba(59, 130, 246, 0.08);
     overflow: hidden;
     max-height: 90vh;
     overflow-y: auto;
@@ -74,6 +74,24 @@
     text-align: center;
 }
 
+.contact-assurance {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    font-size: 0.8rem;
+    color: #cbd5e1;
+}
+
+.contact-assurance div {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 /* Form Groups */
 .form-group {
     margin-bottom: 1.25rem;
@@ -116,8 +134,8 @@
 .form-input:focus,
 .form-textarea:focus {
     border-color: var(--accent-blue);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    background: rgba(15, 23, 42, 0.9);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
 }
 
 .form-input::placeholder,
@@ -167,6 +185,17 @@
     position: relative;
     overflow: hidden;
     margin-top: 1rem;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
 }
 
 .btn-submit:hover:not(:disabled) {

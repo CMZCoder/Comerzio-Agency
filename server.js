@@ -40,7 +40,7 @@ app.use((req, res, next) => {
 
 // Validation helpers
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const isValidPhone = (phone) => /^[\d\+\-\(\) ]{7,}$/.test(phone); // Basic phone validation
+const isValidPhone = (phone) => /^[\d+() -]{7,}$/.test(phone); // Basic phone validation
 
 // Transporter configuration - only if SMTP vars exist
 let transporter = null;
@@ -57,7 +57,7 @@ try {
         });
 
         // Verify connection - but don't let it crash the server
-        transporter.verify(function (error, success) {
+        transporter.verify(function (error) {
             if (error) {
                 console.log("SMTP Connection Error:", error.message);
             } else {

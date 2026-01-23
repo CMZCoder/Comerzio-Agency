@@ -16,7 +16,7 @@ const Footer = () => {
             // Random animations for each section
             const animations = ['footer-fade-slide', 'footer-bounce', 'footer-scale-pulse', 'footer-rotate-subtle'];
 
-            Array.from(elements).forEach((element, index) => {
+            Array.from(elements).forEach((element) => {
                 // Remove previous animation
                 element.classList.remove(...animations);
 
