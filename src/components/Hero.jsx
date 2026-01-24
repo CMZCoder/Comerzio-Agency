@@ -6,6 +6,8 @@ import SpaceBackground from './SpaceBackground';
 
 const Hero = () => {
     const { t } = useTranslation();
+    const MotionDiv = motion.div;
+    const MotionSpan = motion.span;
 
     return (
         <section className="hero-section">
@@ -13,38 +15,28 @@ const Hero = () => {
             {/* Background Decor */}
             <SpaceBackground />
 
-            <motion.div
+            <MotionDiv
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, ease: "easeOut" }}
                 className="hero-content"
             >
-                <motion.span
-                    className="coming-soon-badge"
+                <MotionDiv
+                    className="hero-status"
                     animate={{
-                        scale: [1, 1.05, 1, 1.05, 1],
-                        borderColor: ["#b8860b", "#fff", "#b8860b", "#fff", "#b8860b"],
-                        boxShadow: [
-                            "0 0 0 rgba(212, 175, 55, 0)",
-                            "0 0 20px rgba(212, 175, 55, 0.6)",
-                            "0 0 0 rgba(212, 175, 55, 0)",
-                            "0 0 20px rgba(212, 175, 55, 0.6)",
-                            "0 0 0 rgba(212, 175, 55, 0)"
-                        ]
+                        scale: [1, 1.02, 1],
+                        opacity: [0.85, 1, 0.85]
                     }}
-                    transition={{
-                        duration: 3,
-                        times: [0, 0.1, 0.2, 0.3, 0.5], // The "lub-dub" rhythm
-                        repeat: Infinity,
-                        repeatDelay: 1
-                    }}
+                    transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                 >
-                    {t('coming_soon')}
-                </motion.span>
-                <br />
-                <span className="hero-agency-name">
-                    {t('agency_name')}
-                </span>
+                    <span className="hero-status-pill">{t('hero_status_label')}</span>
+                    <span className="hero-status-divider" />
+                    <span className="hero-status-value">{t('hero_status_value')}</span>
+                </MotionDiv>
+                <div className="hero-identity">
+                    <span className="hero-identity-primary">{t('hero_identity_primary')}</span>
+                    <span className="hero-identity-secondary">{t('hero_identity_secondary')}</span>
+                </div>
 
                 <h1 className="hero-title">
                     <AnimatedText
@@ -70,7 +62,7 @@ const Hero = () => {
                     <SparkleSubtitle text={t('hero_subtitle')} />
                 </p>
 
-                <motion.div
+                <MotionDiv
                     className="hero-actions"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -96,8 +88,8 @@ const Hero = () => {
                     </button>
 
                     <ContactShatterButton />
-                </motion.div>
-            </motion.div>
+                </MotionDiv>
+            </MotionDiv>
         </section>
     );
 };
@@ -128,7 +120,7 @@ const SparkleSubtitle = ({ text }) => {
     // Using a fixed count of sparkles (e.g., 5)
     // We can't strictly use random inside render without useMemo/useState, 
     // but for this simple effect, constant positions working is key.
-    const sparkles = React.useMemo(() => {
+    const [sparkles] = React.useState(() => {
         return Array.from({ length: 5 }).map((_, i) => ({
             id: i,
             top: `${Math.random() * 100}%`,

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import AutoScrollGallery from './AutoScrollGallery';
 
@@ -37,10 +37,11 @@ const projects = [
 const ProjectCard = ({ project, index }) => {
     const { t } = useTranslation();
     const ref = useRef(null);
+    const MotionDiv = motion.div;
 
     return (
         <div className="project-card-wrapper">
-            <motion.div
+            <MotionDiv
                 ref={ref}
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
@@ -49,11 +50,6 @@ const ProjectCard = ({ project, index }) => {
                 className="project-card"
             >
                 <div className="project-image-container">
-                    {project.id === 'commerzio' && (
-                        <div className="ribbon-wrapper">
-                            <div className="ribbon">{t('in_development')}</div>
-                        </div>
-                    )}
                     <AutoScrollGallery images={project.images} title={project.title} />
                 </div>
 
@@ -87,7 +83,7 @@ const ProjectCard = ({ project, index }) => {
                         </a>
                     )}
                 </div>
-            </motion.div>
+            </MotionDiv>
         </div>
     );
 };

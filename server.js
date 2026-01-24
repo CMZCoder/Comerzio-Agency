@@ -5,6 +5,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import fs from 'fs/promises';
+import { createServer as createViteServer } from 'vite';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,6 +15,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const isProduction = process.env.NODE_ENV === 'production';
 
 // Middleware
 app.use(cors());
@@ -40,7 +43,7 @@ app.use((req, res, next) => {
 
 // Validation helpers
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-const isValidPhone = (phone) => /^[\d\+\-\(\) ]{7,}$/.test(phone); // Basic phone validation
+const isValidPhone = (phone) => /^[\d+() -]{7,}$/.test(phone); // Basic phone validation
 
 // Transporter configuration - only if SMTP vars exist
 let transporter = null;
@@ -57,7 +60,7 @@ try {
         });
 
         // Verify connection - but don't let it crash the server
-        transporter.verify(function (error, success) {
+        transporter.verify(function (error) {
             if (error) {
                 console.log("SMTP Connection Error:", error.message);
             } else {
@@ -156,39 +159,64 @@ ${message}
 });
 
 
-// Serve static files from the dist directory
-const distPath = join(__dirname, 'dist');
-console.log(`Serving static files from: ${distPath}`);
-app.use(express.static(distPath));
+const startServer = async () => {
+    if (!isProduction) {
+        const vite = await createViteServer({
+            server: { middlewareMode: true },
+            appType: 'spa'
+        });
 
-// Handle React routing, return all requests to React app
-app.get('*', (req, res) => {
-    console.log(`Serving ${req.path}`);
+        app.use(vite.middlewares);
 
-    // If the request is for an asset (js, css, png, etc.) that wasn't found in dist, return 404
-    if (req.path.includes('.') && !req.path.endsWith('.html')) {
-        console.log(`Asset not found: ${req.path}`);
-        return res.status(404).send('File not found');
-    }
-
-    // Serve index.html for all other routes (SPA)
-    const indexPath = join(__dirname, 'dist', 'index.html');
-
-    try {
-        res.sendFile(indexPath, (err) => {
-            if (err) {
-                console.error(`Error serving index.html: ${err.message}`);
-                res.status(500).send('<h1>Server Error</h1><p>Could not load the application.</p>');
+        app.use('*', async (req, res, next) => {
+            const url = req.originalUrl;
+            try {
+                const template = await fs.readFile(join(__dirname, 'index.html'), 'utf-8');
+                const html = await vite.transformIndexHtml(url, template);
+                res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+            } catch (error) {
+                vite.ssrFixStacktrace(error);
+                next(error);
             }
         });
-    } catch (error) {
-        console.error(`Critical error: ${error.message}`);
-        res.status(500).send('<h1>Server Error</h1>');
-    }
-});
+    } else {
+        // Serve static files from the dist directory
+        const distPath = join(__dirname, 'dist');
+        console.log(`Serving static files from: ${distPath}`);
+        app.use(express.static(distPath));
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`Node version: ${process.version}`);
-    console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+        // Handle React routing, return all requests to React app
+        app.get('*', (req, res) => {
+            console.log(`Serving ${req.path}`);
+
+            // If the request is for an asset (js, css, png, etc.) that wasn't found in dist, return 404
+            if (req.path.includes('.') && !req.path.endsWith('.html')) {
+                console.log(`Asset not found: ${req.path}`);
+                return res.status(404).send('File not found');
+            }
+
+            // Serve index.html for all other routes (SPA)
+            const indexPath = join(__dirname, 'dist', 'index.html');
+
+            try {
+                res.sendFile(indexPath, (err) => {
+                    if (err) {
+                        console.error(`Error serving index.html: ${err.message}`);
+                        res.status(500).send('<h1>Server Error</h1><p>Could not load the application.</p>');
+                    }
+                });
+            } catch (error) {
+                console.error(`Critical error: ${error.message}`);
+                res.status(500).send('<h1>Server Error</h1>');
+            }
+        });
+    }
+
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on port ${PORT}`);
+        console.log(`Node version: ${process.version}`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+};
+
+startServer();
