@@ -16,12 +16,12 @@ const ServicesCarousel = ({ items, t }) => {
     const trackRef = useRef(null);
     const containerRef = useRef(null);
     const offsetRef = useRef(0);
+    const targetOffsetRef = useRef(0);
     const loopWidthRef = useRef(0);
     const rafRef = useRef(null);
     const isDraggingRef = useRef(false);
     const dragStartX = useRef(0);
     const dragStartOffset = useRef(0);
-    const wasPausedRef = useRef(false);
 
     const [isPaused, setIsPaused] = useState(false);
     const [isHovering, setIsHovering] = useState(false);
@@ -41,19 +41,47 @@ const ServicesCarousel = ({ items, t }) => {
     }, []);
 
     useEffect(() => {
-        const speed = 0.25;
+        const speed = 0.3;
+        const smoothing = 0.08;
+        let lastOffset = null;
 
         const animate = () => {
             const track = trackRef.current;
-            if (!track) return;
+            if (!track) {
+                rafRef.current = requestAnimationFrame(animate);
+                return;
+            }
 
-            if (!isPaused && !isHovering && !isDraggingRef.current) {
-                offsetRef.current -= speed;
-                const loopWidth = loopWidthRef.current || track.scrollWidth / 3;
-                if (Math.abs(offsetRef.current) >= loopWidth) {
-                    offsetRef.current += loopWidth;
-                }
-                track.style.transform = `translateX(${offsetRef.current}px)`;
+            const loopWidth = loopWidthRef.current || track.scrollWidth / 3;
+            const shouldMove = !isPaused && !isHovering && !isDraggingRef.current;
+
+            // Auto-play movement
+            if (shouldMove) {
+                targetOffsetRef.current -= speed;
+            }
+
+            // Smooth interpolation toward target
+            const diff = targetOffsetRef.current - offsetRef.current;
+            if (Math.abs(diff) > 0.5) {
+                offsetRef.current += diff * smoothing;
+            } else {
+                offsetRef.current = targetOffsetRef.current;
+            }
+
+            // Loop normalization
+            if (offsetRef.current < -loopWidth * 2) {
+                offsetRef.current += loopWidth;
+                targetOffsetRef.current += loopWidth;
+            } else if (offsetRef.current > 0) {
+                offsetRef.current -= loopWidth;
+                targetOffsetRef.current -= loopWidth;
+            }
+
+            // Only update DOM if value changed
+            const roundedOffset = Math.round(offsetRef.current * 100) / 100;
+            if (lastOffset !== roundedOffset) {
+                track.style.transform = `translateX(${roundedOffset}px)`;
+                lastOffset = roundedOffset;
             }
 
             rafRef.current = requestAnimationFrame(animate);
@@ -74,31 +102,26 @@ const ServicesCarousel = ({ items, t }) => {
     };
 
     const nudge = (direction) => {
-        setIsPaused(true);
         const step = getStepSize();
-        offsetRef.current += direction * step;
-        if (trackRef.current) {
-            trackRef.current.style.transform = `translateX(${offsetRef.current}px)`;
-        }
+        targetOffsetRef.current += direction * step;
     };
 
     const handlePointerDown = (event) => {
         isDraggingRef.current = true;
-        wasPausedRef.current = isPaused;
-        if (!isPaused) {
-            setIsPaused(true);
-        }
         dragStartX.current = event.clientX;
         dragStartOffset.current = offsetRef.current;
+        targetOffsetRef.current = offsetRef.current;
         containerRef.current?.setPointerCapture(event.pointerId);
     };
 
     const handlePointerMove = (event) => {
         if (!isDraggingRef.current) return;
         const delta = event.clientX - dragStartX.current;
-        offsetRef.current = dragStartOffset.current + delta;
+        const newOffset = dragStartOffset.current + delta;
+        offsetRef.current = newOffset;
+        targetOffsetRef.current = newOffset;
         if (trackRef.current) {
-            trackRef.current.style.transform = `translateX(${offsetRef.current}px)`;
+            trackRef.current.style.transform = `translateX(${newOffset}px)`;
         }
     };
 
@@ -106,9 +129,6 @@ const ServicesCarousel = ({ items, t }) => {
         if (!isDraggingRef.current) return;
         isDraggingRef.current = false;
         containerRef.current?.releasePointerCapture(event.pointerId);
-        if (!wasPausedRef.current) {
-            setIsPaused(false);
-        }
     };
 
     return (
@@ -124,11 +144,11 @@ const ServicesCarousel = ({ items, t }) => {
                     {isPaused ? <Play size={16} /> : <Pause size={16} />}
                     <span>{isPaused ? t('services_play') : t('services_pause')}</span>
                 </button>
-                <div className="services-arrows" aria-hidden={!isPaused}>
-                    <button type="button" className="services-arrow" onClick={() => nudge(1)} disabled={!isPaused}>
+                <div className="services-arrows">
+                    <button type="button" className="services-arrow" onClick={() => nudge(1)}>
                         <ChevronLeft size={18} />
                     </button>
-                    <button type="button" className="services-arrow" onClick={() => nudge(-1)} disabled={!isPaused}>
+                    <button type="button" className="services-arrow" onClick={() => nudge(-1)}>
                         <ChevronRight size={18} />
                     </button>
                 </div>
@@ -281,7 +301,9 @@ const TestimonialsCarousel = ({ items, t }) => {
     const [isHovering, setIsHovering] = useState(false);
     const isDownRef = useRef(false);
     const startXRef = useRef(0);
+    const startProgressRef = useRef(0);
     const rafRef = useRef(null);
+    const isArrowNudgeRef = useRef(false);
 
     // Continuous progress that wraps smoothly (no jump)
     const normalizeProgress = useCallback((value) => {
@@ -291,32 +313,45 @@ const TestimonialsCarousel = ({ items, t }) => {
     // Smooth animation loop
     useEffect(() => {
         const autoSpeed = 0.03;
-        const smoothing = 0.06; // Smooth easing factor
+        const arrowSmoothing = 0.08;
+        let lastProgress = null;
 
         const animate = () => {
+            const shouldAutoPlay = isPlaying && !isHovering && !isDownRef.current && !isArrowNudgeRef.current;
+            
             // Auto-play movement
-            if (isPlaying && !isHovering && !isDownRef.current) {
+            if (shouldAutoPlay) {
                 targetProgressRef.current += autoSpeed;
+                progressRef.current = targetProgressRef.current;
             }
 
-            // Smooth interpolation toward target
-            let diff = targetProgressRef.current - progressRef.current;
-            
-            // Handle wrap-around smoothly
-            if (diff > 50) diff -= 100;
-            if (diff < -50) diff += 100;
-            
-            if (Math.abs(diff) > 0.01) {
-                progressRef.current += diff * smoothing;
-            } else {
-                progressRef.current = targetProgressRef.current;
+            // Smooth interpolation only for arrow nudges
+            if (isArrowNudgeRef.current) {
+                let diff = targetProgressRef.current - progressRef.current;
+                
+                // Handle wrap-around smoothly
+                if (diff > 50) diff -= 100;
+                if (diff < -50) diff += 100;
+                
+                if (Math.abs(diff) > 0.05) {
+                    progressRef.current += diff * arrowSmoothing;
+                } else {
+                    progressRef.current = targetProgressRef.current;
+                    isArrowNudgeRef.current = false;
+                }
             }
 
             // Normalize to 0-100 range
             progressRef.current = normalizeProgress(progressRef.current);
             targetProgressRef.current = normalizeProgress(targetProgressRef.current);
             
-            setProgress(progressRef.current);
+            // Only update state if value changed significantly
+            const roundedProgress = Math.round(progressRef.current * 100) / 100;
+            if (lastProgress !== roundedProgress) {
+                setProgress(roundedProgress);
+                lastProgress = roundedProgress;
+            }
+            
             rafRef.current = requestAnimationFrame(animate);
         };
 
@@ -325,21 +360,25 @@ const TestimonialsCarousel = ({ items, t }) => {
     }, [isPlaying, isHovering, normalizeProgress]);
 
     const handleWheel = (event) => {
-        event.preventDefault();
-        targetProgressRef.current += event.deltaY * 0.02;
+        const delta = event.deltaY * 0.02;
+        progressRef.current += delta;
+        targetProgressRef.current = progressRef.current;
     };
 
     const handlePointerDown = (event) => {
         isDownRef.current = true;
+        isArrowNudgeRef.current = false;
         startXRef.current = event.clientX;
+        startProgressRef.current = progressRef.current;
         event.currentTarget.setPointerCapture(event.pointerId);
     };
 
     const handlePointerMove = (event) => {
         if (!isDownRef.current) return;
-        const delta = (event.clientX - startXRef.current) * -0.15;
-        targetProgressRef.current += delta;
-        startXRef.current = event.clientX;
+        // Instant drag - no smoothing
+        const delta = (event.clientX - startXRef.current) * -0.08;
+        progressRef.current = startProgressRef.current + delta;
+        targetProgressRef.current = progressRef.current;
     };
 
     const handlePointerUp = (event) => {
@@ -348,6 +387,7 @@ const TestimonialsCarousel = ({ items, t }) => {
     };
 
     const nudge = (direction) => {
+        isArrowNudgeRef.current = true;
         targetProgressRef.current += direction * (100 / items.length);
     };
 
@@ -370,21 +410,21 @@ const TestimonialsCarousel = ({ items, t }) => {
             onMouseEnter={() => setIsHovering(true)}
             onMouseLeave={() => setIsHovering(false)}
         >
-            <div className="testimonial-orbit__controls">
+            <div className="testimonial-orbit__controls" onPointerDown={(e) => e.stopPropagation()}>
                 <button
                     type="button"
                     className="testimonial-orbit__control"
-                    onClick={() => setIsPlaying((prev) => !prev)}
+                    onClick={(e) => { e.stopPropagation(); setIsPlaying((prev) => !prev); }}
                     aria-label={isPlaying ? t('testimonial_pause', 'Pause') : t('testimonial_play', 'Play')}
                 >
                     {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                    <span className="visually-hidden">{isPlaying ? t('testimonial_pause', 'Pause') : t('testimonial_play', 'Play')}</span>
+                    <span>{isPlaying ? t('testimonial_pause', 'Pause') : t('testimonial_play', 'Play')}</span>
                 </button>
                 <div className="testimonial-orbit__arrows">
-                    <button type="button" className="testimonial-orbit__arrow" onClick={() => nudge(-1)}>
+                    <button type="button" className="testimonial-orbit__arrow" onClick={(e) => { e.stopPropagation(); nudge(-1); }}>
                         <ChevronLeft size={18} />
                     </button>
-                    <button type="button" className="testimonial-orbit__arrow" onClick={() => nudge(1)}>
+                    <button type="button" className="testimonial-orbit__arrow" onClick={(e) => { e.stopPropagation(); nudge(1); }}>
                         <ChevronRight size={18} />
                     </button>
                 </div>
@@ -456,16 +496,21 @@ const TechStackLoop = ({ items, t }) => {
 
     useEffect(() => {
         const speed = 0.5;
-        const smoothing = 0.08; // For smooth arrow transitions
+        const smoothing = 0.08;
+        let lastOffset = null;
 
         const animate = () => {
             const track = trackRef.current;
-            if (!track) return;
+            if (!track) {
+                rafRef.current = requestAnimationFrame(animate);
+                return;
+            }
 
             const loopWidth = loopWidthRef.current || track.scrollWidth / 3;
+            const shouldMove = isPlaying && !isHovering && !isDraggingRef.current;
 
             // Auto-play movement
-            if (isPlaying && !isHovering && !isDraggingRef.current) {
+            if (shouldMove) {
                 targetOffsetRef.current -= speed;
             }
 
@@ -486,7 +531,13 @@ const TechStackLoop = ({ items, t }) => {
                 targetOffsetRef.current -= loopWidth;
             }
 
-            track.style.transform = `translateX(${offsetRef.current}px)`;
+            // Only update DOM if value changed
+            const roundedOffset = Math.round(offsetRef.current * 100) / 100;
+            if (lastOffset !== roundedOffset) {
+                track.style.transform = `translateX(${roundedOffset}px)`;
+                lastOffset = roundedOffset;
+            }
+
             rafRef.current = requestAnimationFrame(animate);
         };
 
@@ -514,7 +565,7 @@ const TechStackLoop = ({ items, t }) => {
         dragStartX.current = event.clientX;
         dragStartOffset.current = offsetRef.current;
         targetOffsetRef.current = offsetRef.current;
-        galleryRef.current?.setPointerCapture(event.pointerId);
+        event.currentTarget.setPointerCapture(event.pointerId);
     };
 
     const handlePointerMove = (event) => {
@@ -531,22 +582,13 @@ const TechStackLoop = ({ items, t }) => {
     const handlePointerUp = (event) => {
         if (!isDraggingRef.current) return;
         isDraggingRef.current = false;
-        galleryRef.current?.releasePointerCapture(event.pointerId);
+        event.currentTarget.releasePointerCapture(event.pointerId);
         // Normalize after drag
         targetOffsetRef.current = normalizeOffset(offsetRef.current);
     };
 
     return (
-        <div 
-            className="stack-gallery" 
-            ref={galleryRef}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            style={{ touchAction: 'pan-y' }}
-        >
+        <div className="stack-gallery" ref={galleryRef}>
             <div className="stack-gallery__controls">
                 <button type="button" className="stack-gallery__control" onClick={() => setIsPlaying((prev) => !prev)}>
                     {isPlaying ? <Pause size={16} /> : <Play size={16} />}
@@ -566,6 +608,11 @@ const TechStackLoop = ({ items, t }) => {
                 ref={trackRef}
                 onMouseEnter={() => setIsHovering(true)}
                 onMouseLeave={() => setIsHovering(false)}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={handlePointerUp}
+                style={{ touchAction: 'pan-y' }}
             >
                 {loopItems.map((stackGroup, index) => (
                     <article key={`${stackGroup.titleKey}-${index}`} className="stack-gallery__card">

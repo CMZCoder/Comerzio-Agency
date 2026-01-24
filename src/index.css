@@ -21,6 +21,19 @@
   --rail-gutter: clamp(64px, 7vw, 120px);
 }
 
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+/* Performance Optimizations */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -41,6 +54,10 @@ body {
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  /* Performance: Enable hardware acceleration */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Custom Stylish Scrollbar */
@@ -166,6 +183,7 @@ h1 {
   max-width: var(--container-width);
   margin: 0 auto;
   padding: 0 20px;
+  overflow-x: hidden;
 }
 
 .flex-center {
@@ -485,14 +503,6 @@ h1 {
   /* Ensure descenders aren't clipped by bounding box */
 }
 
-.hero-title__line {
-  display: block;
-}
-
-.hero-title__line--gradient {
-  white-space: nowrap;
-}
-
 /* Fix for descender clipping: Expand paint area downwards */
 .hero-title .text-gradient {
   padding-bottom: 0.4em;
@@ -781,6 +791,7 @@ h1 {
 .content-section {
   padding: 5rem 20px;
   padding-right: 20px;
+  overflow-x: hidden;
 }
 
 .content-section:nth-of-type(even) {
@@ -1041,6 +1052,8 @@ h1 {
   gap: 1.5rem;
   width: max-content;
   will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .service-slide {
@@ -1054,6 +1067,8 @@ h1 {
   position: relative;
   overflow: hidden;
   transition: transform 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .service-glow {
@@ -1475,11 +1490,15 @@ h1 {
     0 20px 50px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
   flex: 0 0 auto;
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              box-shadow 0.4s ease,
+              border-color 0.4s ease;
   transform-style: preserve-3d;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .stack-gallery__card::before {
@@ -1650,7 +1669,7 @@ h1 {
 .testimonial-orbit {
   position: relative;
   height: 450px;
-  overflow: visible;
+  overflow: hidden;
   perspective: 1400px;
   display: grid;
   place-items: center;
@@ -1662,14 +1681,14 @@ h1 {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
+  right: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0 0.5rem;
-  z-index: 20;
-  overflow: visible;
+  padding: 0 1rem;
+  z-index: 30;
+  pointer-events: none;
 }
 
 .testimonial-orbit__control {
@@ -1679,13 +1698,15 @@ h1 {
   padding: 0.6rem 1rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(6, 10, 18, 0.7);
+  background: rgba(6, 10, 18, 0.9);
   color: #fff;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  pointer-events: auto;
 }
 
 .testimonial-orbit__control:hover {
@@ -1698,7 +1719,7 @@ h1 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  overflow: visible;
+  pointer-events: auto;
 }
 
 .testimonial-orbit__arrow {
@@ -1715,6 +1736,7 @@ h1 {
   position: relative;
   overflow: visible;
   flex-shrink: 0;
+  pointer-events: auto;
 }
 
 .testimonial-orbit__arrow::before {
@@ -1743,16 +1765,19 @@ h1 {
 
 .testimonial-orbit__item {
   position: absolute;
-  width: min(400px, 85vw);
-  transform: translate(calc(var(--active) * 520%), calc(var(--active) * 30%))
-    rotate(calc(var(--active) * 6deg))
+  width: min(380px, 80vw);
+  max-width: calc(100vw - 2rem);
+  transform: translate(calc(var(--active) * 450%), calc(var(--active) * 25%))
+    rotate(calc(var(--active) * 5deg))
     scale(calc(1 - var(--abs) * 0.1));
-  opacity: calc(1 - var(--abs) * 0.35);
-  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1), 
-              opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-              filter 0.8s ease;
+  opacity: calc(1 - var(--abs) * 0.4);
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
+              opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.5s ease;
   z-index: var(--zIndex);
   filter: blur(calc(var(--abs) * 1.5px));
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 .testimonial-orbit__card {
@@ -3112,24 +3137,15 @@ h1 {
   }
 
   .hero-title {
-    font-size: clamp(1.6rem, 7.5vw, 2.2rem);
+    font-size: clamp(1.5rem, 7vw, 2rem);
     margin-bottom: 1rem;
-    /* Prevent awkward word breaks */
-    word-break: keep-all;
-    overflow-wrap: normal;
-    hyphens: none;
   }
 
-  /* Allow proper scaling of the gradient line on mobile */
-  .hero-title__line--gradient {
-    white-space: normal;
-    display: inline;
-  }
-
-  /* Ensure "Digital" doesn't break in the middle */
+  /* Ensure "Digital" doesn't break in the middle on mobile */
   .hero-title .text-gradient {
-    white-space: nowrap;
-    font-size: inherit;
+    display: block;
+    white-space: normal;
+    word-break: keep-all;
   }
 
   .hero-subtitle {

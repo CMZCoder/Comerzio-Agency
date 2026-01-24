@@ -98,9 +98,9 @@ function App() {
             className="header-brand"
             role="button"
             tabIndex={0}
-            onClick={() => scrollToSection('about')}
+            onClick={scrollToTop}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') scrollToSection('about');
+              if (event.key === 'Enter') scrollToTop();
             }}
           >
             <div className="logo">

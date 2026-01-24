@@ -39,12 +39,10 @@ const Hero = () => {
                 </div>
 
                 <h1 className="hero-title">
-                    <span className="hero-title__line hero-title__line--gradient">
-                        <AnimatedText
-                            text={t('hero_title').split(' ').slice(0, -1).join(' ')}
-                            className="text-gradient"
-                        />
-                    </span>
+                    <AnimatedText
+                        text={t('hero_title').split(' ').slice(0, -1).join(' ')}
+                        className="text-gradient"
+                    />
                     <br />
                     <AnimatedText
                         text={t('hero_title').split(' ').slice(-1)[0]}

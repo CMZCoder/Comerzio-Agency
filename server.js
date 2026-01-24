@@ -90,9 +90,13 @@ app.get('/health', (req, res) => {
 
 // Override Hostinger's restrictive CSP - allow necessary features
 app.use((req, res, next) => {
+    const connectSrc = isProduction
+        ? "connect-src 'self' https:;"
+        : "connect-src 'self' https: http://localhost:* ws://localhost:*;";
+
     res.setHeader(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https:;"
+        `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; ${connectSrc}`
     );
     next();
 });
@@ -171,8 +175,11 @@ app.post('/api/contact', rateLimit, async (req, res) => {
             from: `"${name}" <${process.env.EMAIL_FROM}>`, // Using authenticated sender to avoid spam blocking
             to: process.env.SMTP_USER, // The admin email
             replyTo: email, // Reply to the customer
-            subject: `New Contact Request from ${name}`,
+            subject: `🚀 New Contact Request from ${name}`,
             text: `
+New Contact Request
+==================
+
 Name: ${name}
 Email: ${email}
 Phone: ${phone || 'Not provided'}
@@ -181,13 +188,71 @@ Message:
 ${message}
             `,
             html: `
-<h3>New Contact Request</h3>
-<p><strong>Name:</strong> ${name}</p>
-<p><strong>Email:</strong> ${email}</p>
-<p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
-<br/>
-<p><strong>Message:</strong></p>
-<p>${message.replace(/\n/g, '<br>')}</p>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #0a0a0f; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0f; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background: linear-gradient(135deg, #12121a 0%, #1a1a2e 100%); border-radius: 24px; overflow: hidden; box-shadow: 0 25px 80px rgba(0,0,0,0.5);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #3B82F6 0%, #1d4ed8 100%); padding: 32px 40px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; letter-spacing: 2px;">COMMERZIO</h1>
+                            <p style="margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px; letter-spacing: 1px;">NEW CONTACT REQUEST</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <!-- Contact Info Cards -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 12px;">
+                                        <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Name</p>
+                                        <p style="margin: 0; color: #ffffff; font-size: 18px; font-weight: 600;">${name}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 16px 20px;">
+                                        <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Email</p>
+                                        <a href="mailto:${email}" style="color: #3B82F6; font-size: 16px; text-decoration: none;">${email}</a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 16px 20px;">
+                                        <p style="margin: 0 0 4px; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Phone</p>
+                                        <p style="margin: 0; color: #ffffff; font-size: 16px;">${phone || 'Not provided'}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <!-- Message -->
+                            <div style="background: rgba(212, 175, 55, 0.05); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 12px; padding: 24px;">
+                                <p style="margin: 0 0 12px; color: #D4AF37; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Message</p>
+                                <p style="margin: 0; color: #e5e7eb; font-size: 15px; line-height: 1.7;">${message.replace(/\n/g, '<br>')}</p>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background: rgba(0,0,0,0.3); padding: 24px 40px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <p style="margin: 0; color: #6b7280; font-size: 13px;">Reply directly to this email to respond to ${name}</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
             `,
         });
 
@@ -196,26 +261,102 @@ ${message}
             from: `"Commerzio Agentur" <${process.env.EMAIL_FROM}>`,
             to: email,
             replyTo: 'sales@commerzio.online',
-            subject: 'We received your message!',
+            subject: '✨ We received your message - Commerzio',
             html: `
-<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #eee;">
-    <h2 style="color: #333;">Thank you for contacting Commerzio Agentur</h2>
-    <p style="color: #555;">Hi ${name},</p>
-    <p style="color: #555;">We have received your message and wanted to let you know that our team will be in touch with you very soon.</p>
-    <p style="color: #555;">Here is a copy of your message:</p>
-    <blockquote style="background-color: #fff; padding: 15px; border-left: 4px solid #007bff; color: #666; font-style: italic;">
-        ${message.replace(/\n/g, '<br>')}
-    </blockquote>
-    <br/>
-    <p style="color: #555;">If you have any urgent inquiries, feel free to reply directly to this email.</p>
-    <br/>
-    <p style="color: #333; font-weight: bold;">Best regards,</p>
-    <p style="color: #007bff; font-weight: bold;">Commerzio Agentur Team</p>
-    <p style="font-size: 12px; color: #999;">
-        <a href="mailto:sales@commerzio.online" style="color: #007bff; text-decoration: none;">sales@commerzio.online</a> | 
-        <a href="https://agency.commerzio.online" style="color: #007bff; text-decoration: none;">agency.commerzio.online</a>
-    </p>
-</div>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #0a0a0f; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #0a0a0f; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="max-width: 600px; background: linear-gradient(135deg, #12121a 0%, #1a1a2e 100%); border-radius: 24px; overflow: hidden; box-shadow: 0 25px 80px rgba(0,0,0,0.5);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #D4AF37 0%, #b8962e 100%); padding: 40px; text-align: center;">
+                            <h1 style="margin: 0; color: #0a0a0f; font-size: 28px; font-weight: 700; letter-spacing: 2px;">COMMERZIO</h1>
+                            <p style="margin: 12px 0 0; color: rgba(10,10,15,0.8); font-size: 14px;">Premium Web Agency & AI Consultancy</p>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 style="margin: 0 0 16px; color: #ffffff; font-size: 24px; font-weight: 600;">Thank you, ${name}!</h2>
+                            <p style="margin: 0 0 24px; color: #a1a1aa; font-size: 16px; line-height: 1.7;">
+                                We've received your message and appreciate you reaching out to us. Our team is reviewing your inquiry and will get back to you within <strong style="color: #ffffff;">24-48 hours</strong>.
+                            </p>
+                            
+                            <!-- Divider -->
+                            <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(212,175,55,0.3), transparent); margin: 32px 0;"></div>
+                            
+                            <!-- Message Copy -->
+                            <p style="margin: 0 0 12px; color: #D4AF37; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Your Message</p>
+                            <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px;">
+                                <p style="margin: 0; color: #d1d5db; font-size: 14px; line-height: 1.7; font-style: italic;">"${message.replace(/\n/g, '<br>')}"</p>
+                            </div>
+                            
+                            <!-- Divider -->
+                            <div style="height: 1px; background: linear-gradient(90deg, transparent, rgba(212,175,55,0.3), transparent); margin: 32px 0;"></div>
+                            
+                            <!-- What's Next -->
+                            <h3 style="margin: 0 0 16px; color: #ffffff; font-size: 16px; font-weight: 600;">What happens next?</h3>
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="padding: 12px 0;">
+                                        <table cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="width: 32px; height: 32px; background: rgba(59, 130, 246, 0.2); border-radius: 50%; text-align: center; vertical-align: middle; color: #3B82F6; font-weight: 700; font-size: 14px;">1</td>
+                                                <td style="padding-left: 16px; color: #a1a1aa; font-size: 14px;">Our team reviews your inquiry</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 0;">
+                                        <table cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="width: 32px; height: 32px; background: rgba(59, 130, 246, 0.2); border-radius: 50%; text-align: center; vertical-align: middle; color: #3B82F6; font-weight: 700; font-size: 14px;">2</td>
+                                                <td style="padding-left: 16px; color: #a1a1aa; font-size: 14px;">We prepare a tailored response</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px 0;">
+                                        <table cellpadding="0" cellspacing="0">
+                                            <tr>
+                                                <td style="width: 32px; height: 32px; background: rgba(212, 175, 55, 0.2); border-radius: 50%; text-align: center; vertical-align: middle; color: #D4AF37; font-weight: 700; font-size: 14px;">3</td>
+                                                <td style="padding-left: 16px; color: #a1a1aa; font-size: 14px;">You'll receive a personalized reply</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background: rgba(0,0,0,0.3); padding: 32px 40px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <p style="margin: 0 0 16px; color: #ffffff; font-size: 14px; font-weight: 600;">Need urgent assistance?</p>
+                            <a href="mailto:sales@commerzio.online" style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">Reply to this email</a>
+                            <p style="margin: 24px 0 0; color: #6b7280; font-size: 12px;">
+                                <a href="https://agency.commerzio.online" style="color: #6b7280; text-decoration: none;">agency.commerzio.online</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                <!-- Unsubscribe -->
+                <p style="margin: 24px 0 0; color: #4b5563; font-size: 11px; text-align: center;">
+                    This is an automated message from Commerzio. Please do not reply to this email address directly.
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
             `,
         });
 
