@@ -17,9 +17,65 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const isProduction = process.env.NODE_ENV === 'production';
 
+// ======== SECURITY: Rate Limiting ========
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 5; // Max 5 contact requests per minute per IP
+
+const rateLimit = (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    
+    if (!rateLimitMap.has(ip)) {
+        rateLimitMap.set(ip, { count: 1, firstRequest: now });
+        return next();
+    }
+    
+    const record = rateLimitMap.get(ip);
+    
+    // Reset window if expired
+    if (now - record.firstRequest > RATE_LIMIT_WINDOW) {
+        rateLimitMap.set(ip, { count: 1, firstRequest: now });
+        return next();
+    }
+    
+    // Check limit
+    if (record.count >= MAX_REQUESTS) {
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    }
+    
+    record.count++;
+    next();
+};
+
+// Clean up old entries periodically
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of rateLimitMap.entries()) {
+        if (now - record.firstRequest > RATE_LIMIT_WINDOW * 2) {
+            rateLimitMap.delete(ip);
+        }
+    }
+}, RATE_LIMIT_WINDOW);
+
+// ======== SECURITY: Input Sanitization ========
+const sanitizeInput = (str) => {
+    if (typeof str !== 'string') return '';
+    return str
+        .replace(/[<>]/g, '') // Remove HTML brackets
+        .replace(/javascript:/gi, '') // Remove javascript: protocol
+        .replace(/on\w+=/gi, '') // Remove event handlers
+        .trim()
+        .slice(0, 5000); // Limit length
+};
+
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+    origin: isProduction ? ['https://agency.commerzio.online', 'https://commerzio.online'] : true,
+    methods: ['GET', 'POST'],
+    credentials: true
+}));
+app.use(express.json({ limit: '10kb' })); // Limit payload size
 
 // Debug endpoint at root before anything else
 app.get('/test-server', (req, res) => {
@@ -74,8 +130,12 @@ try {
     console.log("SMTP setup error (non-fatal):", err.message);
 }
 
-app.post('/api/contact', async (req, res) => {
-    const { name, email, phone, message } = req.body;
+app.post('/api/contact', rateLimit, async (req, res) => {
+    // Sanitize all inputs
+    const name = sanitizeInput(req.body.name);
+    const email = sanitizeInput(req.body.email);
+    const phone = sanitizeInput(req.body.phone);
+    const message = sanitizeInput(req.body.message);
 
     // Check if email sending is configured
     if (!transporter) {
@@ -83,7 +143,7 @@ app.post('/api/contact', async (req, res) => {
     }
 
     // Server-side validation
-    if (!name || /[\d!@#$%^&*(),.?":{}|<>]/.test(name)) {
+    if (!name || name.length < 2 || /[\d!@#$%^&*(),.?":{}|<>]/.test(name)) {
         return res.status(400).json({ error: 'Invalid name. Name is required and must not contain numbers or symbols.' });
     }
     if (!email || !isValidEmail(email)) {
@@ -94,6 +154,15 @@ app.post('/api/contact', async (req, res) => {
     }
     if (!message || message.length < 20) {
         return res.status(400).json({ error: 'Message is too short. Minimum 20 characters required.' });
+    }
+    if (message.length > 5000) {
+        return res.status(400).json({ error: 'Message is too long. Maximum 5000 characters allowed.' });
+    }
+
+    // Additional spam protection - check for common spam patterns
+    const spamPatterns = [/\b(viagra|casino|lottery|winner|prize)\b/i, /<script/i, /http[s]?:\/\/[^\s]+\.(ru|cn|tk)/i];
+    if (spamPatterns.some(pattern => pattern.test(message))) {
+        return res.status(400).json({ error: 'Message contains prohibited content.' });
     }
 
     try {

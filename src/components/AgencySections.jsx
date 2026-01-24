@@ -276,71 +276,79 @@ const TestimonialsCarousel = ({ items, t }) => {
     const containerRef = useRef(null);
     const [progress, setProgress] = useState(0);
     const progressRef = useRef(0);
+    const targetProgressRef = useRef(0);
     const [isPlaying, setIsPlaying] = useState(true);
     const [isHovering, setIsHovering] = useState(false);
     const isDownRef = useRef(false);
     const startXRef = useRef(0);
-    const wasPlayingRef = useRef(false);
     const rafRef = useRef(null);
 
     // Continuous progress that wraps smoothly (no jump)
     const normalizeProgress = useCallback((value) => {
-        // Use modulo to wrap around seamlessly
         return ((value % 100) + 100) % 100;
     }, []);
 
-    const updateProgress = useCallback((value) => {
-        // Smooth continuous wrap - no clamping
-        const next = normalizeProgress(value);
-        progressRef.current = next;
-        setProgress(next);
-    }, [normalizeProgress]);
+    // Smooth animation loop
+    useEffect(() => {
+        const autoSpeed = 0.03;
+        const smoothing = 0.06; // Smooth easing factor
 
-    // Calculate active index with smooth interpolation
-    const activeIndex = Math.floor((progress / 100) * items.length) % items.length;
+        const animate = () => {
+            // Auto-play movement
+            if (isPlaying && !isHovering && !isDownRef.current) {
+                targetProgressRef.current += autoSpeed;
+            }
+
+            // Smooth interpolation toward target
+            let diff = targetProgressRef.current - progressRef.current;
+            
+            // Handle wrap-around smoothly
+            if (diff > 50) diff -= 100;
+            if (diff < -50) diff += 100;
+            
+            if (Math.abs(diff) > 0.01) {
+                progressRef.current += diff * smoothing;
+            } else {
+                progressRef.current = targetProgressRef.current;
+            }
+
+            // Normalize to 0-100 range
+            progressRef.current = normalizeProgress(progressRef.current);
+            targetProgressRef.current = normalizeProgress(targetProgressRef.current);
+            
+            setProgress(progressRef.current);
+            rafRef.current = requestAnimationFrame(animate);
+        };
+
+        rafRef.current = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(rafRef.current);
+    }, [isPlaying, isHovering, normalizeProgress]);
 
     const handleWheel = (event) => {
-        if (isPlaying) return;
         event.preventDefault();
-        updateProgress(progressRef.current + event.deltaY * 0.015);
+        targetProgressRef.current += event.deltaY * 0.02;
     };
 
     const handlePointerDown = (event) => {
         isDownRef.current = true;
-        wasPlayingRef.current = isPlaying;
-        if (isPlaying) setIsPlaying(false);
         startXRef.current = event.clientX;
         event.currentTarget.setPointerCapture(event.pointerId);
     };
 
     const handlePointerMove = (event) => {
         if (!isDownRef.current) return;
-        const delta = (event.clientX - startXRef.current) * -0.08;
-        updateProgress(progressRef.current + delta);
+        const delta = (event.clientX - startXRef.current) * -0.15;
+        targetProgressRef.current += delta;
         startXRef.current = event.clientX;
     };
 
     const handlePointerUp = (event) => {
         isDownRef.current = false;
         event.currentTarget.releasePointerCapture(event.pointerId);
-        if (wasPlayingRef.current) setIsPlaying(true);
     };
 
-    useEffect(() => {
-        if (!isPlaying || isHovering) return undefined;
-
-        // SLOWER speed: 0.04 instead of 0.08 (half speed)
-        const animate = () => {
-            updateProgress(progressRef.current + 0.04);
-            rafRef.current = requestAnimationFrame(animate);
-        };
-
-        rafRef.current = requestAnimationFrame(animate);
-        return () => cancelAnimationFrame(rafRef.current);
-    }, [isPlaying, isHovering, updateProgress]);
-
     const nudge = (direction) => {
-        updateProgress(progressRef.current + direction * (100 / items.length));
+        targetProgressRef.current += direction * (100 / items.length);
     };
 
     // Calculate position for each testimonial with smooth wrap
@@ -373,10 +381,10 @@ const TestimonialsCarousel = ({ items, t }) => {
                     <span className="visually-hidden">{isPlaying ? t('testimonial_pause', 'Pause') : t('testimonial_play', 'Play')}</span>
                 </button>
                 <div className="testimonial-orbit__arrows">
-                    <button type="button" className="testimonial-orbit__arrow" onClick={() => nudge(-1)} disabled={isPlaying}>
+                    <button type="button" className="testimonial-orbit__arrow" onClick={() => nudge(-1)}>
                         <ChevronLeft size={18} />
                     </button>
-                    <button type="button" className="testimonial-orbit__arrow" onClick={() => nudge(1)} disabled={isPlaying}>
+                    <button type="button" className="testimonial-orbit__arrow" onClick={() => nudge(1)}>
                         <ChevronRight size={18} />
                     </button>
                 </div>
@@ -413,12 +421,12 @@ const TechStackLoop = ({ items, t }) => {
     const galleryRef = useRef(null);
     const trackRef = useRef(null);
     const offsetRef = useRef(0);
+    const targetOffsetRef = useRef(0);
     const loopWidthRef = useRef(0);
     const rafRef = useRef(null);
     const isDraggingRef = useRef(false);
     const dragStartX = useRef(0);
     const dragStartOffset = useRef(0);
-    const wasPlayingRef = useRef(false);
     const [isPlaying, setIsPlaying] = useState(true);
     const [isHovering, setIsHovering] = useState(false);
 
@@ -436,22 +444,49 @@ const TechStackLoop = ({ items, t }) => {
         return () => window.removeEventListener('resize', updateLoopWidth);
     }, []);
 
+    // Normalize offset to stay within loop bounds
+    const normalizeOffset = useCallback((value) => {
+        const loopWidth = loopWidthRef.current;
+        if (!loopWidth) return value;
+        // Keep within one loop cycle
+        while (value > 0) value -= loopWidth;
+        while (value < -loopWidth * 2) value += loopWidth;
+        return value;
+    }, []);
+
     useEffect(() => {
         const speed = 0.5;
+        const smoothing = 0.08; // For smooth arrow transitions
 
         const animate = () => {
             const track = trackRef.current;
             if (!track) return;
 
+            const loopWidth = loopWidthRef.current || track.scrollWidth / 3;
+
+            // Auto-play movement
             if (isPlaying && !isHovering && !isDraggingRef.current) {
-                offsetRef.current -= speed;
-                const loopWidth = loopWidthRef.current || track.scrollWidth / 3;
-                if (Math.abs(offsetRef.current) >= loopWidth) {
-                    offsetRef.current += loopWidth;
-                }
-                track.style.transform = `translateX(${offsetRef.current}px)`;
+                targetOffsetRef.current -= speed;
             }
 
+            // Smooth interpolation for arrow nudges
+            const diff = targetOffsetRef.current - offsetRef.current;
+            if (Math.abs(diff) > 0.5) {
+                offsetRef.current += diff * smoothing;
+            } else {
+                offsetRef.current = targetOffsetRef.current;
+            }
+
+            // Normalize to loop seamlessly
+            if (offsetRef.current < -loopWidth * 2) {
+                offsetRef.current += loopWidth;
+                targetOffsetRef.current += loopWidth;
+            } else if (offsetRef.current > 0) {
+                offsetRef.current -= loopWidth;
+                targetOffsetRef.current -= loopWidth;
+            }
+
+            track.style.transform = `translateX(${offsetRef.current}px)`;
             rafRef.current = requestAnimationFrame(animate);
         };
 
@@ -471,27 +506,25 @@ const TechStackLoop = ({ items, t }) => {
 
     const nudge = (direction) => {
         const step = getStepSize();
-        offsetRef.current += direction * step;
-        if (trackRef.current) {
-            trackRef.current.style.transform = `translateX(${offsetRef.current}px)`;
-        }
+        targetOffsetRef.current += direction * step;
     };
 
     const handlePointerDown = (event) => {
         isDraggingRef.current = true;
-        wasPlayingRef.current = isPlaying;
-        if (isPlaying) setIsPlaying(false);
         dragStartX.current = event.clientX;
         dragStartOffset.current = offsetRef.current;
+        targetOffsetRef.current = offsetRef.current;
         galleryRef.current?.setPointerCapture(event.pointerId);
     };
 
     const handlePointerMove = (event) => {
         if (!isDraggingRef.current) return;
         const delta = event.clientX - dragStartX.current;
-        offsetRef.current = dragStartOffset.current + delta;
+        const newOffset = dragStartOffset.current + delta;
+        offsetRef.current = newOffset;
+        targetOffsetRef.current = newOffset;
         if (trackRef.current) {
-            trackRef.current.style.transform = `translateX(${offsetRef.current}px)`;
+            trackRef.current.style.transform = `translateX(${newOffset}px)`;
         }
     };
 
@@ -499,11 +532,21 @@ const TechStackLoop = ({ items, t }) => {
         if (!isDraggingRef.current) return;
         isDraggingRef.current = false;
         galleryRef.current?.releasePointerCapture(event.pointerId);
-        if (wasPlayingRef.current) setIsPlaying(true);
+        // Normalize after drag
+        targetOffsetRef.current = normalizeOffset(offsetRef.current);
     };
 
     return (
-        <div className="stack-gallery" ref={galleryRef}>
+        <div 
+            className="stack-gallery" 
+            ref={galleryRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{ touchAction: 'pan-y' }}
+        >
             <div className="stack-gallery__controls">
                 <button type="button" className="stack-gallery__control" onClick={() => setIsPlaying((prev) => !prev)}>
                     {isPlaying ? <Pause size={16} /> : <Play size={16} />}
@@ -523,10 +566,6 @@ const TechStackLoop = ({ items, t }) => {
                 ref={trackRef}
                 onMouseEnter={() => setIsHovering(true)}
                 onMouseLeave={() => setIsHovering(false)}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerLeave={handlePointerUp}
             >
                 {loopItems.map((stackGroup, index) => (
                     <article key={`${stackGroup.titleKey}-${index}`} className="stack-gallery__card">

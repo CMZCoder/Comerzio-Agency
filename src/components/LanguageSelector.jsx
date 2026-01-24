@@ -48,7 +48,7 @@ const LanguageSelector = () => {
     };
 
     return (
-        <div ref={containerRef} style={{ position: 'relative', zIndex: 50 }}>
+        <div ref={containerRef} className="lang-selector-container">
             {/* Trigger Button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -57,30 +57,18 @@ const LanguageSelector = () => {
             >
                 <div className="lang-trigger-bg"></div>
                 <Globe size={18} />
-                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{currentLang.label}</span>
+                <span className="lang-trigger-label">{currentLang.label}</span>
             </button>
 
             {/* Dropdown */}
             <AnimatePresence>
                 {isOpen && (
                     <MotionDiv
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="glass-panel"
-                        style={{
-                            position: 'absolute',
-                            top: '100%',
-                            right: 0,
-                            marginTop: '0.5rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '4px',
-                            padding: '0.5rem',
-                            minWidth: '160px',
-                            maxHeight: '300px', // Prevent too long dropdown
-                            overflowY: 'auto'
-                        }}
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                        className="lang-dropdown"
                     >
                         {languages.map((lang) => (
                             <button
