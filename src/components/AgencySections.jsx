@@ -994,16 +994,23 @@ const AgencySections = () => {
         const particleCount = 1600; // High density for better shape definition
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
         
-        // Initialize with random positions (Chaos state)
-        for (let i = 0; i < particleCount * 3; i++) {
-            positions[i] = (Math.random() * 2 - 1) * 4;
+        // Initialize with random positions (Chaos state) and default blue color
+        const baseColor = new THREE.Color(0x4f90ff);
+        for (let i = 0; i < particleCount; i++) {
+            const i3 = i*3;
+            positions[i3] = (Math.random() * 2 - 1) * 4;
+            positions[i3+1] = (Math.random() * 2 - 1) * 4;
+            positions[i3+2] = (Math.random() * 2 - 1) * 4;
+            colors[i3] = baseColor.r; colors[i3+1]=baseColor.g; colors[i3+2]=baseColor.b;
         }
         
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
         
         const material = new THREE.PointsMaterial({
-            color: 0x7ac7ff,
+            vertexColors: true,
             size: 0.06,
             transparent: true,
             opacity: 0.8,
@@ -1017,215 +1024,455 @@ const AgencySections = () => {
         const particleSystem = new THREE.Points(geometry, material);
         scene.add(particleSystem);
 
-        // --- Shape Generators ---
-        const getSpherePositions = () => {
-            const arr = new Float32Array(particleCount * 3);
-            for (let i = 0; i < particleCount; i++) {
-                const i3 = i * 3;
-                const r = 2.5;
-                const phi = Math.acos(-1 + (2 * i) / particleCount);
-                const theta = Math.sqrt(particleCount * Math.PI) * phi;
-                arr[i3] = r * Math.cos(theta) * Math.sin(phi);
-                arr[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
-                arr[i3 + 2] = r * Math.cos(phi);
-            }
-            return arr;
-        };
-
         // --- Shape Library ---
+        // Default Blue Color
+        const C_BLUE = {r:0.2, g:0.6, b:1.0};
+        
+        // Helper: parametric surface shapes
         const createShape = (getPoint) => {
-            const arr = new Float32Array(particleCount * 3);
+            const pos = new Float32Array(particleCount * 3);
+            const col = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
-                // Parametric UV mapping
-                const u = (Math.random() * Math.PI * 2); 
-                const v = (Math.random() * Math.PI * 2); // Random distribution smoother for organic shapes
-                // Alternately, grid based:
-                // const u = (i / particleCount) * Math.PI * 2;
-                // const v = ((i % 50) / 50) * Math.PI * 2;
-                
-                const { x, y, z } = getPoint(u, v, i);
-                arr[i3] = x; arr[i3 + 1] = y; arr[i3 + 2] = z;
+                const u = Math.random() * Math.PI * 2;
+                const v = Math.random() * Math.PI * 2;
+                const p = getPoint(u, v, i);
+                pos[i3] = p.x; pos[i3 + 1] = p.y; pos[i3 + 2] = p.z;
+                col[i3] = p.r !== undefined ? p.r : C_BLUE.r;
+                col[i3+1] = p.g !== undefined ? p.g : C_BLUE.g;
+                col[i3+2] = p.b !== undefined ? p.b : C_BLUE.b;
             }
-            return arr;
+            return { positions: pos, colors: col };
+        };
+        // Helper: composite shapes from multiple geometric parts
+        const compositeShape = (parts) => {
+            const pos = new Float32Array(particleCount * 3);
+            const col = new Float32Array(particleCount * 3);
+            const totalW = parts.reduce((s, p) => s + p.w, 0);
+            let idx = 0;
+            for (const part of parts) {
+                const count = Math.round((part.w / totalW) * particleCount);
+                for (let j = 0; j < count && idx < particleCount; j++) {
+                    const i3 = idx * 3;
+                    const pt = part.fn(j, count);
+                    pos[i3] = pt.x; pos[i3 + 1] = pt.y; pos[i3 + 2] = pt.z;
+                    col[i3] = pt.r!==undefined ? pt.r : C_BLUE.r;
+                    col[i3+1] = pt.g!==undefined ? pt.g : C_BLUE.g;
+                    col[i3+2] = pt.b!==undefined ? pt.b : C_BLUE.b;
+                    idx++;
+                }
+            }
+            while (idx < particleCount) { 
+                const i3 = idx * 3; 
+                pos[i3]=0; pos[i3+1]=0; pos[i3+2]=0; 
+                col[i3]=C_BLUE.r; col[i3+1]=C_BLUE.g; col[i3+2]=C_BLUE.b;
+                idx++; 
+            }
+            return { positions: pos, colors: col };
+        };
+        // Helper: scatter particles along edges of a 2D polygon with slight Z depth
+        const outlineShape = (verts, closed, scl, oX, oY) => {
+            const pos = new Float32Array(particleCount * 3);
+            const col = new Float32Array(particleCount * 3);
+            const edges = [];
+            let totalLen = 0;
+            const len = closed ? verts.length : verts.length - 1;
+            for (let i = 0; i < len; i++) {
+                const a = verts[i], b = verts[(i + 1) % verts.length];
+                const el = Math.sqrt((b[0]-a[0])**2 + (b[1]-a[1])**2);
+                edges.push({ a, b, el });
+                totalLen += el;
+            }
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                let r = Math.random() * totalLen;
+                let edge = edges[0];
+                for (const e of edges) { r -= e.el; if (r <= 0) { edge = e; break; } }
+                const t = Math.random();
+                pos[i3] = (edge.a[0] + (edge.b[0]-edge.a[0])*t) * scl + oX;
+                pos[i3+1] = (edge.a[1] + (edge.b[1]-edge.a[1])*t) * scl + oY;
+                pos[i3+2] = (Math.random()-0.5) * 0.3;
+                col[i3] = C_BLUE.r; col[i3+1] = C_BLUE.g; col[i3+2] = C_BLUE.b;
+            }
+            return { positions: pos, colors: col };
         };
 
         const shapes = [
             // 1. Sphere
             createShape((u, v) => {
                 const r = 2.5;
-                return { x: r * Math.sin(u) * Math.cos(v), y: r * Math.sin(u) * Math.sin(v), z: r * Math.cos(u) };
+                return { x: r*Math.sin(u)*Math.cos(v), y: r*Math.sin(u)*Math.sin(v), z: r*Math.cos(u) };
             }),
             // 2. Cube
             createShape((u, v, i) => {
                 const face = Math.floor(Math.random() * 6);
-                const a = Math.random() * 4 - 2;
-                const b = Math.random() * 4 - 2;
-                if (face===0) return {x:2, y:a, z:b};
-                if (face===1) return {x:-2, y:a, z:b};
-                if (face===2) return {x:a, y:2, z:b};
-                if (face===3) return {x:a, y:-2, z:b};
-                if (face===4) return {x:a, y:b, z:2};
-                return {x:a, y:b, z:-2};
+                const a = Math.random()*4-2, b = Math.random()*4-2;
+                if(face===0) return {x:2,y:a,z:b}; if(face===1) return {x:-2,y:a,z:b};
+                if(face===2) return {x:a,y:2,z:b}; if(face===3) return {x:a,y:-2,z:b};
+                if(face===4) return {x:a,y:b,z:2}; return {x:a,y:b,z:-2};
             }),
-            // 3. Torus
+            // 3. Torus (Donut)
             createShape((u, v) => {
                 const R=2.2, r=0.8;
                 return { x: (R+r*Math.cos(v))*Math.cos(u), y: (R+r*Math.cos(v))*Math.sin(u), z: r*Math.sin(v) };
             }),
-            // 4. Helix (DNA)
+            // 4. DNA Helix
             createShape((u, v, i) => {
-                const t = (i/particleCount)*Math.PI*8;
-                const r = 1.5;
+                const t = (i/particleCount)*Math.PI*8, r = 1.5;
                 const off = (i%2===0)?0:Math.PI;
                 return { x: Math.cos(t+off)*r, y: (i/particleCount)*6-3, z: Math.sin(t+off)*r };
             }),
             // 5. Galaxy Spiral
             createShape((u, v, i) => {
-                const arms=3, arm=i%arms;
-                const r = Math.random()*3.5;
+                const arms=3, arm=i%arms, r=Math.random()*3.5;
                 const ang = (arm/arms)*Math.PI*2 + r*2.5;
-                const noise = (Math.random()-0.5)*0.5;
-                return { x: Math.cos(ang)*r+noise, y: Math.sin(ang)*r+noise, z: (Math.random()-0.5)*0.5 };
+                const n = (Math.random()-0.5)*0.5;
+                return { x: Math.cos(ang)*r+n, y: Math.sin(ang)*r+n, z: (Math.random()-0.5)*0.5 };
             }),
-            // 6. Torus Knot (p=2, q=3)
+            // 6. Torus Knot
             createShape((u) => {
-                const p=2, q=3;
-                const r = 0.8 + 1.2 * Math.cos(q*u); 
+                const p=2, q=3, r = 0.8 + 1.2*Math.cos(q*u);
                 return { x: r*Math.cos(p*u), y: r*Math.sin(p*u), z: -Math.sin(q*u) };
             }),
-             // 7. Torus Knot (p=3, q=4)
-             createShape((u) => {
-                const p=3, q=4;
-                const r = 1.0 + 1.0 * Math.cos(q*u);
-                return { x: r*Math.cos(p*u), y: r*Math.sin(p*u), z: -Math.sin(q*u) };
-            }),
-            // 8. Cone
+            // 7. Cone
             createShape((u, v) => {
-                const h = 4.0; 
-                const r = (1 - v/(2*Math.PI)) * 2; // Taper
-                const y = (v/(2*Math.PI)) * h - h/2;
-                return { x: r*Math.cos(u), y: y, z: r*Math.sin(u) };
+                const h=4, r=(1-v/(2*Math.PI))*2, y=(v/(2*Math.PI))*h - h/2;
+                return { x: r*Math.cos(u), y, z: r*Math.sin(u) };
             }),
-            // 9. Klein Bottle (Figure-8)
-            createShape((u, v) => {
-                const r = 2.0; // Scale
-                // Domain 0..2PI
-                const cosU = Math.cos(u), sinU = Math.sin(u);
-                const cosV = Math.cos(v/2), sinV = Math.sin(v/2); // Half v for single twist
-                // Need standard parametric. Using simple Figure-8 immersion
-                // x = (r + cos(u/2) * sin(v) - sin(u/2) * sin(2v)) * cos(u)
-                // Simplified bottle:
-                const R=1.5, P=0.5;
-                return {
-                    x: (R + Math.cos(u/2)*Math.sin(v) - Math.sin(u/2)*Math.sin(2*v)) * Math.cos(u),
-                    y: (R + Math.cos(u/2)*Math.sin(v) - Math.sin(u/2)*Math.sin(2*v)) * Math.sin(u),
-                    z: Math.sin(u/2)*Math.sin(v) + Math.cos(u/2)*Math.sin(2*v)
-                };
+
+            // ♥ 8. Heart
+            createShape((u) => {
+                const t = u; // 0..2PI
+                const hx = 16 * Math.pow(Math.sin(t), 3);
+                const hy = 13*Math.cos(t) - 5*Math.cos(2*t) - 2*Math.cos(3*t) - Math.cos(4*t);
+                return { x: hx*0.17, y: hy*0.17 + 0.5, z: (Math.random()-0.5)*0.5 };
             }),
-            // 10. Mobius Strip
-            createShape((u, v) => {
-                // u: 0..2PI, v: -1..1
-                const w = (v / (Math.PI*2)) * 2 - 1; 
-                const R = 2.0;
-                return {
-                    x: (R + w/2 * Math.cos(u/2)) * Math.cos(u),
-                    y: (R + w/2 * Math.cos(u/2)) * Math.sin(u),
-                    z: w/2 * Math.sin(u/2)
-                };
-            }),
-            // 11. Superellipsoid (Star)
-            createShape((u, v) => {
-                const n1=0.3, n2=0.3; // pointy
-                const rx=2.5, ry=2.5, rz=2.5;
-                const cu = Math.cos(u), su = Math.sin(u);
-                const cv = Math.cos(v), sv = Math.sin(v);
-                const sgn = (x)=>x>0?1:(x<0?-1:0);
-                const p = (val, n) => sgn(val) * Math.pow(Math.abs(val), n);
-                
-                return {
-                    x: rx * p(cv, n1) * p(cu, n2),
-                    y: ry * p(cv, n1) * p(su, n2),
-                    z: rz * p(sv, n1)
-                };
-            }),
-            // 12. Superellipsoid (Rounded Box)
-            createShape((u, v) => {
-                const n1=4, n2=4; // square
-                const rx=2, ry=2, rz=2;
-                const cu = Math.cos(u), su = Math.sin(u);
-                const cv = Math.cos(v), sv = Math.sin(v);
-                const sgn = (x)=>x>0?1:(x<0?-1:0);
-                const p = (val, n) => sgn(val) * Math.pow(Math.abs(val), n);
-                return {
-                    x: rx * p(cv, n1) * p(cu, n2),
-                    y: ry * p(cv, n1) * p(su, n2),
-                    z: rz * p(sv, n1)
-                };
-            }),
-             // 13. Octahedron (sampled positions)
-             createShape(() => {
-                // Random point on octahedron surface involves selecting a face and random barycentric coords
-                // Simplification using sphere -> normalize with L1 norm
-                const x = Math.random()*2-1, y = Math.random()*2-1, z = Math.random()*2-1;
-                const d = Math.abs(x) + Math.abs(y) + Math.abs(z);
-                const s = 3.0 / d; // Scale size
-                return {x:x*s, y:y*s, z:z*s};
-            }),
-            // 14. Tetrahedron
-            createShape(() => {
-                // 4 vertices: (1,1,1), (1,-1,-1), (-1,1,-1), (-1,-1,1)
-                // Interpolate
-               const u = Math.random(), v=Math.random(), w=Math.random();
-               if(u+v+w > 1) { /* Fold */ }
-               // Simple random on sphere -> push to corners?
-               // Let's use basic math:
-               let x = Math.random()*2-1;
-               let y = Math.random()*2-1;
-               let z = Math.random()*2-1;
-               // Project to tetrahedron surface... complex.
-               // Approximation: Pyramid
-               const h = 3;
-               const r = (1 - (y+1.5)/h) * 2;
-               return { x: r*Math.sin(x*Math.PI*2), y:y*2, z: r*Math.cos(x*Math.PI*2) }
-            }),
-            // 15. Dini's Surface (Twisted pseudosphere)
-            createShape((u, v) => {
-                // u: 0..4PI, v: 0.1..2
-                u *= 2; v = (v/(Math.PI*2)) * 1.9 + 0.1;
-                const a=1, b=0.2;
-                const x = a * Math.cos(u) * Math.sin(v);
-                const y = a * Math.cos(v) + Math.log(Math.tan(v/2)) + b*u;
-                const z = a * Math.sin(u) * Math.sin(v);
-                 // Swap Y/Z for orientation
-                return {x:x*1.5, y:z*1.5, z:y*0.8}; // flatten height
-            }),
-             // 16. Seashell
-             createShape((u,v)=>{
-                // u: 0..2pi, v: 0..2pi ... need spiral
-                const t = u * 4; // Turns
-                const r = 1 - t/(Math.PI*8);
-                return {
-                     x: 0.2*t * Math.cos(t) * (1+Math.cos(v)),
-                     y: 0.2*t * Math.sin(t) * (1+Math.cos(v)),
-                     z: 0.2*t * Math.sin(v) + t*0.5 - 2
+
+            // 🪐 9. Saturn
+            compositeShape([
+                { w: 60, fn: () => { // Planet
+                    const u=Math.random()*Math.PI*2, v=Math.random()*Math.PI*2, r=2.0;
+                    return { x: r*Math.sin(u)*Math.cos(v), y: r*Math.cos(u), z: r*Math.sin(u)*Math.sin(v) };
+                }},
+                { w: 40, fn: () => { // Ring
+                    const a=Math.random()*Math.PI*2, rr=2.8+Math.random()*1.5;
+                    return { x: rr*Math.cos(a), y: (Math.random()-0.5)*0.1, z: rr*Math.sin(a)*0.4 };
+                }}
+            ]),
+
+            // 🌳 10. Fruit Tree (Red Fruits)
+            compositeShape([
+                { w: 20, fn: () => { // Trunk (Brown)
+                    const h = Math.random() * 2.5; 
+                    const r = 0.4 * (1 - h/3.5); 
+                    const a = Math.random() * Math.PI * 2;
+                    return { x: r*Math.cos(a), y: h - 2.5, z: r*Math.sin(a), r:0.6, g:0.4, b:0.2 };
+                }},
+                { w: 65, fn: () => { // Foliage (Green)
+                    const u = Math.random(), v = Math.random();
+                    const theta = 2 * Math.PI * u;
+                    const phi = Math.acos(2 * v - 1);
+                    const r = 1.8 * Math.cbrt(Math.random());
+                    return { 
+                        x: r * Math.sin(phi) * Math.cos(theta), 
+                        y: r * Math.sin(phi) * Math.sin(theta) + 0.8, 
+                        z: r * Math.cos(phi),
+                        r: 0.2, g: 0.8, b: 0.2
+                    };
+                }},
+                { w: 15, fn: () => { // Fruits (Red)
+                    const fruitCenters = [
+                        {x:1.0, y:1.0, z:0.5}, {x:-0.8, y:1.5, z:0.8}, {x:0, y:2.2, z:-0.5},
+                        {x:0.5, y:0.5, z:1.2}, {x:-1.2, y:0.8, z:-0.2}, {x:0.8, y:1.8, z:-0.8},
+                        {x:-0.5, y:1.2, z:-1.0}, {x:1.2, y:0.2, z:0}, {x:-0.2, y:0, z:1.3},
+                        {x:0.6, y:2.0, z:0.4}, {x:-0.9, y:1.9, z:0.1}, {x:0.2, y:0.6, z:-1.3}
+                    ];
+                    const center = fruitCenters[Math.floor(Math.random() * fruitCenters.length)];
+                    const r = Math.random() * 0.25; 
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    return {
+                        x: center.x + r * Math.sin(phi) * Math.cos(theta),
+                        y: center.y + r * Math.sin(phi) * Math.sin(theta),
+                        z: center.z + r * Math.cos(phi),
+                        r: 1.0, g: 0.2, b: 0.2 // Red
+                    };
+                }}
+            ]),
+
+            // ⭐ 11. Five-Pointed Star
+            (() => {
+                const pts = [];
+                for (let i = 0; i < 10; i++) {
+                    const a = (i/10)*Math.PI*2 - Math.PI/2;
+                    const r = (i%2===0) ? 3.0 : 1.3;
+                    pts.push([r*Math.cos(a), r*Math.sin(a)]);
                 }
-             }),
-             // 17. Hyperboloid
-             createShape((u, v) => {
-                 const h = (v/Math.PI - 1) * 2;
-                 const r = Math.sqrt(1 + h*h) * 0.8;
-                 return { x: r*Math.cos(u), y: h*1.5, z: r*Math.sin(u) };
-             }),
-            // 18-20. Rorschach variants (Procedural blobs)
-            createShape((u,v,i) => { // Blob 1
-                const x = (Math.random()*2-1)*2, y=(Math.random()*2-1)*2, z=(Math.random()*2-1);
-                const d=Math.sqrt(x*x+y*y+z*z); const s=(Math.sin(d*6)+1.5)*0.8;
-                return {x:x*s, y:y*s, z:z*s};
+                return outlineShape(pts, true, 1, 0, 0);
+            })(),
+
+            // 💎 12. Diamond Gem
+            compositeShape([
+                { w: 55, fn: () => { // Bottom pavilion (pointed)
+                    const h=Math.random()*2.8, r=(1-h/2.8)*2.2, a=Math.random()*Math.PI*2;
+                    return { x: r*Math.cos(a), y: -h, z: r*Math.sin(a) };
+                }},
+                { w: 30, fn: () => { // Top crown (short)
+                    const h=Math.random()*0.8, r=(1-h/0.8)*2.2, a=Math.random()*Math.PI*2;
+                    return { x: r*Math.cos(a), y: h, z: r*Math.sin(a) };
+                }},
+                { w: 15, fn: () => { // Table (flat top)
+                    const a=Math.random()*Math.PI*2, r=Math.random()*1.5;
+                    return { x: r*Math.cos(a), y: 0.8, z: r*Math.sin(a) };
+                }}
+            ]),
+
+            // 🔺 13. Egyptian Pyramid (proper 4-sided)
+            compositeShape([
+                { w: 25, fn: () => { // Base square
+                    const s=2.5;
+                    const edge=Math.floor(Math.random()*4), t=Math.random()*2-1;
+                    if(edge===0) return {x:t*s, y:-1.5, z:s};
+                    if(edge===1) return {x:t*s, y:-1.5, z:-s};
+                    if(edge===2) return {x:s, y:-1.5, z:t*s};
+                    return {x:-s, y:-1.5, z:t*s};
+                }},
+                { w: 75, fn: () => { // 4 triangular faces (edges to apex)
+                    const face=Math.floor(Math.random()*4);
+                    const t=Math.random(), side=Math.random()*2-1;
+                    const baseR=(1-t)*2.5, y=-1.5+t*4.5;
+                    if(face===0) return {x:side*baseR, y, z:baseR};
+                    if(face===1) return {x:side*baseR, y, z:-baseR};
+                    if(face===2) return {x:baseR, y, z:side*baseR};
+                    return {x:-baseR, y, z:side*baseR};
+                }}
+            ]),
+
+            // 🗼 14. Eiffel Tower
+            compositeShape([
+                { w: 35, fn: () => { // Two legs (wide base)
+                    const leg = Math.random()>0.5 ? 1 : -1;
+                    const h = Math.random()*1.5;
+                    const spread = (1-h/1.5)*2.0+0.6;
+                    return { x: leg*spread+(Math.random()-0.5)*0.2, y: h-2.5, z: (Math.random()-0.5)*0.4 };
+                }},
+                { w: 15, fn: () => { // First platform
+                    const t=Math.random()*2-1;
+                    return { x: t*1.2, y: -1.0, z: (Math.random()-0.5)*0.3 };
+                }},
+                { w: 25, fn: () => { // Middle taper
+                    const h=Math.random()*1.5;
+                    const w=0.8-h*0.35;
+                    return { x: (Math.random()*2-1)*w, y: -1.0+h, z: (Math.random()-0.5)*0.3 };
+                }},
+                { w: 10, fn: () => { // Second platform
+                    const t=Math.random()*2-1;
+                    return { x: t*0.6, y: 0.5, z: (Math.random()-0.5)*0.3 };
+                }},
+                { w: 15, fn: () => { // Spire
+                    const h=Math.random()*2.0;
+                    return { x: (Math.random()-0.5)*0.15, y: 0.5+h, z: (Math.random()-0.5)*0.15 };
+                }}
+            ]),
+
+            // 🦁 15. Lion Face (3D Sculpted)
+            compositeShape([
+                { w: 40, fn: (j, n) => { // Volumetric Mane (Golden, shaggy)
+                    const u=Math.random()*Math.PI*2, v=Math.random()*Math.PI;
+                    const r=2.8 + Math.random()*1.0; 
+                    // Bias towards outer/back to frame face
+                    return { 
+                        x: r*Math.cos(u), y: r*Math.sin(u)*0.9+0.2, z: (Math.random()-0.6)*1.5, 
+                        r:0.8+Math.random()*0.2, g:0.5+Math.random()*0.1, b:0.1 
+                    };
+                }},
+                { w: 20, fn: (j, n) => { // Face Base (Tan)
+                    const u=Math.random()*Math.PI*2, v=Math.random()*Math.PI;
+                    const r=1.9;
+                    return { 
+                        x: r*Math.cos(u)*Math.sin(v)*0.9, y: r*Math.sin(u)*Math.sin(v)*0.9 + 0.2, z: r*Math.cos(v)*0.5 + 0.5,
+                        r:0.75, g:0.65, b:0.4 
+                    };
+                }},
+                { w: 15, fn: () => { // Snout / Muzzle (Protruding cylinder)
+                    const t=Math.random(), a=Math.random()*Math.PI*2;
+                    const r=0.85, l=1.0; 
+                    return { 
+                        x: r*Math.cos(a)*Math.sqrt(t), y: r*Math.sin(a)*Math.sqrt(t) - 0.4, z: 1.2+l*t,
+                        r:0.8, g:0.7, b:0.5 
+                    };
+                }},
+                { w: 5, fn: () => { // Nose Tip (Black Triangle)
+                    const t=Math.random();
+                    return { 
+                        x: (Math.random()-0.5)*0.7, y: 0.1-t*0.5, z: 2.25,
+                        r:0.1, g:0.1, b:0.1 
+                    };
+                }},
+                { w: 5, fn: () => { // Eyes (Black, deep set)
+                    const side = Math.random()>0.5 ? 1 : -1;
+                    const t = Math.random();
+                    return { 
+                        x: side*(0.7+t*0.3), y: 0.6, z: 1.4+t*0.1,
+                        r:0.05, g:0.05, b:0.05 
+                    };
+                }},
+                { w: 5, fn: () => { // Ears (Rounded on top of mane)
+                    const side = Math.random()>0.5 ? 1 : -1;
+                    const t = Math.random();
+                    return { 
+                        x: side*(1.8+t*0.5), y: 2.1+t*0.5, z: 0.5,
+                        r:0.7, g:0.5, b:0.3 
+                    };
+                }},
+                { w: 5, fn: () => { // Whiskers (White lines)
+                    const side = Math.random()>0.5 ? 1 : -1;
+                    const t = Math.random();
+                    return { 
+                        x: side*(0.9+t*1.8), y: -0.5-t*0.3, z: 1.6-t*0.5,
+                        r:0.9, g:0.9, b:0.9 
+                    };
+                }},
+                { w: 5, fn: () => { // Brow Ridge (Heavy)
+                     const t = Math.random()*2-1;
+                     return { 
+                         x: t*1.6, y: 1.0, z: 1.5, 
+                         r:0.65, g:0.55, b:0.35 
+                     };
+                }}
+            ]),
+
+            // 👁️ 16. Eye (with iris and pupil)
+            compositeShape([
+                { w: 40, fn: (j, n) => { // Almond outline
+                    const t = (j/n)*Math.PI*2;
+                    const x = 3.0*Math.cos(t);
+                    const y = 1.2*Math.sin(t) * (Math.cos(t) > 0 ? 1 : 1); // almond shape
+                    // Taper the ends
+                    const squeeze = Math.pow(Math.cos(t), 2);
+                    return { x, y: y*(0.4+squeeze*0.6), z: (Math.random()-0.5)*0.2 };
+                }},
+                { w: 35, fn: () => { // Iris circle
+                    const a=Math.random()*Math.PI*2, r=0.3+Math.random()*0.8;
+                    return { x: r*Math.cos(a), y: r*Math.sin(a), z: (Math.random()-0.5)*0.15 };
+                }},
+                { w: 25, fn: () => { // Pupil (filled)
+                    const a=Math.random()*Math.PI*2, r=Math.random()*0.4;
+                    return { x: r*Math.cos(a), y: r*Math.sin(a), z: (Math.random()-0.5)*0.1 };
+                }}
+            ]),
+
+            // ♾️ 17. Infinity / Lemniscate
+            createShape((u) => {
+                const t = u; // 0..2PI
+                const scale = 2.5;
+                const denom = 1 + Math.sin(t)*Math.sin(t);
+                return {
+                    x: scale * Math.cos(t) / denom,
+                    y: scale * Math.sin(t) * Math.cos(t) / denom,
+                    z: (Math.random()-0.5) * 0.4
+                };
             }),
-             createShape((u,v,i) => { // Blob 2
-                const x = (Math.random()*2-1)*2, y=(Math.random()*2-1)*2, z=(Math.random()*2-1);
-                const d=x*x+y*y+z*z; const s=(Math.cos(d*3)+1.2)*0.9;
+
+            // 🦋 18. Butterfly
+            compositeShape([
+                { w: 45, fn: (j, n) => { // Right wing
+                    const t = (j/n)*Math.PI*2;
+                    const r = Math.exp(Math.sin(t)) - 2*Math.cos(4*t) + Math.pow(Math.sin((2*t-Math.PI)/24), 5);
+                    return { x: Math.abs(r*Math.cos(t))*0.8, y: r*Math.sin(t)*0.8, z: (Math.random()-0.5)*0.3 };
+                }},
+                { w: 45, fn: (j, n) => { // Left wing (mirror)
+                    const t = (j/n)*Math.PI*2;
+                    const r = Math.exp(Math.sin(t)) - 2*Math.cos(4*t) + Math.pow(Math.sin((2*t-Math.PI)/24), 5);
+                    return { x: -Math.abs(r*Math.cos(t))*0.8, y: r*Math.sin(t)*0.8, z: (Math.random()-0.5)*0.3 };
+                }},
+                { w: 10, fn: (j, n) => { // Body
+                    return { x: 0, y: (j/n)*4-2, z: (Math.random()-0.5)*0.15 };
+                }}
+            ]),
+
+            // 👑 19. Crown
+            compositeShape([
+                { w: 30, fn: (j, n) => { // Base band (circle)
+                    const a = (j/n)*Math.PI*2, r=2.5;
+                    return { x: r*Math.cos(a), y: -1.0, z: r*Math.sin(a)*0.3 };
+                }},
+                { w: 50, fn: () => { // 5 peaks
+                    const peak = Math.floor(Math.random()*5);
+                    const a = (peak/5)*Math.PI*2;
+                    const t = Math.random(); // 0=base, 1=tip
+                    const baseX = 2.5*Math.cos(a), baseZ = 2.5*Math.sin(a)*0.3;
+                    const tipY = 2.0;
+                    return { x: baseX*(1-t*0.6), y: -1.0+t*tipY*1.5, z: baseZ*(1-t*0.6)+(Math.random()-0.5)*0.15 };
+                }},
+                { w: 20, fn: () => { // 5 valleys between peaks
+                    const valley = Math.floor(Math.random()*5);
+                    const a = ((valley+0.5)/5)*Math.PI*2;
+                    const t = Math.random();
+                    const baseX = 2.5*Math.cos(a), baseZ = 2.5*Math.sin(a)*0.3;
+                    return { x: baseX*(1-t*0.3), y: -1.0+t*0.8, z: baseZ*(1-t*0.3) };
+                }}
+            ]),
+
+            // ⚡ 20. Lightning Bolt
+            (() => {
+                const bolt = [
+                    [0.5, 3], [1.5, 1.5], [0.3, 1.5], [1.8, -0.5], [0, -0.5],
+                    [2.5, -3.5], [0.5, -0.8], [-0.5, -0.8], [1.0, 1.2], [-0.3, 1.2], [0.5, 3]
+                ];
+                return outlineShape(bolt, false, 1.0, -0.8, 0);
+            })(),
+
+            // 🧘 21. Buddha Face
+            compositeShape([
+                { w: 35, fn: (j, n) => { // Head circle (round face)
+                    const a = (j/n)*Math.PI*2, r=2.8+(Math.random()-0.5)*0.08;
+                    return { x: r*Math.cos(a)*0.85, y: r*Math.sin(a)+0.2, z: (Math.random()-0.5)*0.2 };
+                }},
+                { w: 10, fn: () => { // Ushnisha (top knob)
+                    const a=Math.random()*Math.PI*2, r=Math.random()*0.9;
+                    return { x: r*Math.cos(a)*0.7, y: 3.0+r*Math.sin(a)*0.6, z: (Math.random()-0.5)*0.15 };
+                }},
+                { w: 8, fn: (j, n) => { // Left closed eye (curved line)
+                    const t = (j/n)*Math.PI;
+                    return { x: -0.9+Math.cos(t)*0.55, y: 0.7+Math.sin(t)*0.15, z: (Math.random()-0.5)*0.1 };
+                }},
+                { w: 8, fn: (j, n) => { // Right closed eye (curved line)
+                    const t = (j/n)*Math.PI;
+                    return { x: 0.9+Math.cos(t)*0.55, y: 0.7+Math.sin(t)*0.15, z: (Math.random()-0.5)*0.1 };
+                }},
+                { w: 4, fn: () => { // Third eye dot (small circle)
+                    const a=Math.random()*Math.PI*2, r=Math.random()*0.15;
+                    return { x: r*Math.cos(a), y: 1.6+r*Math.sin(a), z: (Math.random()-0.5)*0.08 };
+                }},
+                { w: 5, fn: () => { // Nose (small vertical line)
+                    const t=Math.random();
+                    return { x: (Math.random()-0.5)*0.08, y: 0.1+t*0.5, z: (Math.random()-0.5)*0.08 };
+                }},
+                { w: 8, fn: (j, n) => { // Serene smile (gentle arc)
+                    const t = (j/n)*Math.PI;
+                    return { x: Math.cos(t)*0.7, y: -0.5-Math.sin(t)*0.15, z: (Math.random()-0.5)*0.1 };
+                }},
+                { w: 10, fn: () => { // Left elongated earlobe
+                    const t=Math.random();
+                    return { x: -2.4-(Math.random()-0.5)*0.15, y: -0.5+t*1.5-t*t*0.5, z: (Math.random()-0.5)*0.12 };
+                }},
+                { w: 10, fn: () => { // Right elongated earlobe
+                    const t=Math.random();
+                    return { x: 2.4+(Math.random()-0.5)*0.15, y: -0.5+t*1.5-t*t*0.5, z: (Math.random()-0.5)*0.12 };
+                }},
+                { w: 2, fn: (j, n) => { // Hairline curls hint
+                    const a = (j/n)*Math.PI + Math.PI*0.15;
+                    const r = 2.6+(Math.random()-0.5)*0.2;
+                    return { x: r*Math.cos(a)*0.85, y: r*Math.sin(a)+0.5, z: (Math.random()-0.5)*0.15 };
+                }}
+            ]),
+
+            // 🌀 22. Rorschach Organic Blob
+            createShape(() => {
+                const x=(Math.random()*2-1)*2, y=(Math.random()*2-1)*2, z=(Math.random()*2-1);
+                const d=Math.sqrt(x*x+y*y+z*z);
+                const s=(Math.sin(d*6)+1.5)*0.8;
                 return {x:x*s, y:y*s, z:z*s};
             })
         ];
@@ -1284,6 +1531,8 @@ const AgencySections = () => {
             
             const positionAttribute = particleSystem.geometry.attributes.position;
             const currentPositions = positionAttribute.array;
+            const colorAttribute = particleSystem.geometry.attributes.color;
+            const currentColors = colorAttribute.array;
             
             if (!prefersReducedMotion) {
                 // State Machine
@@ -1312,13 +1561,16 @@ const AgencySections = () => {
                 }
 
                 // Interpolation Logic
-                const startShape = shapes[currentShapeIndex];
-                const endShape = shapes[nextShapeIndex];
+                const startShape = shapes[currentShapeIndex].positions;
+                const endShape = shapes[nextShapeIndex].positions;
+                const startCol = shapes[currentShapeIndex].colors;
+                const endCol = shapes[nextShapeIndex].colors;
 
                 for (let i = 0; i < particleCount; i++) {
                     const i3 = i * 3;
                     
                     let tx, ty, tz; // Target X, Y, Z
+                    let tr, tg, tb; // Target RGB
 
                     if (state === 'morph') {
                         // Lerp between shapes with easing
@@ -1326,19 +1578,20 @@ const AgencySections = () => {
                         tx = startShape[i3] * (1 - t) + endShape[i3] * t;
                         ty = startShape[i3 + 1] * (1 - t) + endShape[i3 + 1] * t;
                         tz = startShape[i3 + 2] * (1 - t) + endShape[i3 + 2] * t;
+                        
+                        tr = startCol[i3] * (1 - t) + endCol[i3] * t;
+                        tg = startCol[i3+1] * (1 - t) + endCol[i3+1] * t;
+                        tb = startCol[i3+2] * (1 - t) + endCol[i3+2] * t;
                     } else if (state === 'hold') {
                         // Just hold the current shape (startShape is now the one we morphed TO)
-                        tx = startShape[i3];
-                        ty = startShape[i3 + 1];
-                        tz = startShape[i3 + 2];
+                        tx = startShape[i3]; ty = startShape[i3 + 1]; tz = startShape[i3 + 2];
+                        tr = startCol[i3]; tg = startCol[i3+1]; tb = startCol[i3+2];
                         
                         // Breathing effect
                         const breath = Math.sin(now * 0.002 + i * 0.1) * 0.05;
                         tx += breath; ty += breath; tz += breath;
                     } else if (state === 'disperse') {
                         // Move outwards / chaos
-                        // Interpolate from current shape to a chaotic expanded version
-                        // Actually, let's keep it simple: Just expand outward from center
                         const sx = startShape[i3];
                         const sy = startShape[i3 + 1];
                         const sz = startShape[i3 + 2];
@@ -1346,13 +1599,15 @@ const AgencySections = () => {
                         // Explosion vector
                         const dist = Math.sqrt(sx*sx + sy*sy + sz*sz) + 0.1;
                         const force = (stateTimer / DISPERSE_DURATION) * 2.0; // Expand up to 2x distance
-                        
-                        // Add curl noise or random spin
                         const noise = Math.sin(i * 12.3 + now * 0.005) * 0.5;
-                        
                         tx = sx + (sx / dist) * force + noise;
                         ty = sy + (sy / dist) * force + noise;
                         tz = sz + (sz / dist) * force + noise;
+                        
+                        // Fade to blue chaos
+                        tr = startCol[i3] * (1 - force/2) + 0.2 * (force/2);
+                        tg = startCol[i3+1] * (1 - force/2) + 0.6 * (force/2);
+                        tb = startCol[i3+2] * (1 - force/2) + 1.0 * (force/2);
                     }
 
                     // Apply to current positions (with slight lag/smoothing for organic feel)
@@ -1360,9 +1615,14 @@ const AgencySections = () => {
                     currentPositions[i3] += (tx - currentPositions[i3]) * 0.1;
                     currentPositions[i3 + 1] += (ty - currentPositions[i3 + 1]) * 0.1;
                     currentPositions[i3 + 2] += (tz - currentPositions[i3 + 2]) * 0.1;
+                    
+                    currentColors[i3] += (tr - currentColors[i3]) * 0.1;
+                    currentColors[i3+1] += (tg - currentColors[i3+1]) * 0.1;
+                    currentColors[i3+2] += (tb - currentColors[i3+2]) * 0.1;
                 }
                 
                 positionAttribute.needsUpdate = true;
+                colorAttribute.needsUpdate = true;
                 
                 // Rotate the whole system slowly
                 particleSystem.rotation.y += 0.002;
