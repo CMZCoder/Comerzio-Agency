@@ -1,0 +1,25 @@
+﻿
+D:\AI Agents\Projects\Agency Commerzio\Commerzio-Agency-main\animationscss\cards\js.js
+   1:1   error  'gsap' is not defined           no-undef
+   1:21  error  'ScrollTrigger' is not defined  no-undef
+   3:1   error  'gsap' is not defined           no-undef
+   8:9   error  'gsap' is not defined           no-undef
+   9:10  error  'gsap' is not defined           no-undef
+  11:10  error  'gsap' is not defined           no-undef
+  17:12  error  'ScrollTrigger' is not defined  no-undef
+  71:17  error  'gsap' is not defined           no-undef
+  72:18  error  'gsap' is not defined           no-undef
+  84:2   error  'gsap' is not defined           no-undef
+
+D:\AI Agents\Projects\Agency Commerzio\Commerzio-Agency-main\animationscss\swiperSlider\js.js
+  17:8  error  'Swiper' is not defined  no-undef
+
+D:\AI Agents\Projects\Agency Commerzio\Commerzio-Agency-main\src\components\CookieConsent.jsx
+  74:8  warning  React Hook React.useEffect has a missing dependency: 'storageAvailable'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  84:8  warning  React Hook React.useEffect has a missing dependency: 'storageAvailable'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+D:\AI Agents\Projects\Agency Commerzio\Commerzio-Agency-main\src\components\Footer.jsx
+  4:27  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+Ô£û 14 problems (12 errors, 2 warnings)
+

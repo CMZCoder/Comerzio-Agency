@@ -1,0 +1,15 @@
+﻿[36mvite v7.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32mÔ£ô[39m 2189 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                         [39m[1m[2m  1.71 kB[22m[1m[22m[2m Ôöé gzip:   0.67 kB[22m
+[2mdist/[22m[35massets/vendor-swiper-CHnJsdj7.css  [39m[1m[2m 13.17 kB[22m[1m[22m[2m Ôöé gzip:   3.97 kB[22m
+[2mdist/[22m[35massets/index-DbgaZh-r.css          [39m[1m[2m 63.31 kB[22m[1m[22m[2m Ôöé gzip:  12.44 kB[22m
+[2mdist/[22m[36massets/vendor-framer-BCT2CtXW.js   [39m[1m[2m 77.77 kB[22m[1m[22m[2m Ôöé gzip:  25.26 kB[22m
+[2mdist/[22m[36massets/vendor-swiper-CEXrzmUF.js   [39m[1m[2m100.68 kB[22m[1m[22m[2m Ôöé gzip:  30.46 kB[22m
+[2mdist/[22m[36massets/vendor-gsap-B2uKOqL4.js     [39m[1m[2m113.54 kB[22m[1m[22m[2m Ôöé gzip:  45.01 kB[22m
+[2mdist/[22m[36massets/index-CTR3-Qh2.js           [39m[1m[2m202.35 kB[22m[1m[22m[2m Ôöé gzip:  59.84 kB[22m
+[2mdist/[22m[36massets/vendor-BRxiHwXA.js          [39m[1m[2m297.54 kB[22m[1m[22m[2m Ôöé gzip:  96.88 kB[22m
+[2mdist/[22m[36massets/vendor-three-DzVY3DbN.js    [39m[1m[2m487.37 kB[22m[1m[22m[2m Ôöé gzip: 123.51 kB[22m
+[32mÔ£ô built in 5.06s[39m
