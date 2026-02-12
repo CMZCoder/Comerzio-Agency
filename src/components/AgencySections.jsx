@@ -988,46 +988,111 @@ const AgencySections = () => {
         let constellationVisible = true;
         camera.position.z = 6;
 
-        const coreGroup = new THREE.Group();
-        scene.add(coreGroup);
-
-        const nodeGeometry = new THREE.SphereGeometry(0.07, 16, 16);
-        const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0x7ac7ff });
-        for (let i = 0; i < 24; i += 1) {
-            const node = new THREE.Mesh(nodeGeometry, nodeMaterial);
-            const angle = (i / 24) * Math.PI * 2;
-            const radius = 2.1 + Math.sin(i) * 0.25;
-            node.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, (i % 6) * 0.08);
-            coreGroup.add(node);
+        // Symbiosis/Morphing Effect: 
+        // Particles transition between distinct shapes (Sphere, DNA, Rorschach)
+        // with a fluid dispersion phase in between, creating a true symbiotic organism feel.
+        const particleCount = 1200; // High density for better shape definition
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        
+        // Initialize with random positions (Chaos state)
+        for (let i = 0; i < particleCount * 3; i++) {
+            positions[i] = (Math.random() * 2 - 1) * 4;
         }
-
-        const glowGeometry = new THREE.BufferGeometry();
-        const glowPoints = [];
-        for (let i = 0; i < 140; i += 1) {
-            const angle = Math.random() * Math.PI * 2;
-            const radius = 2.6 + Math.random() * 0.7;
-            glowPoints.push(Math.cos(angle) * radius, Math.sin(angle) * radius, (Math.random() - 0.5) * 1.6);
-        }
-        glowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(glowPoints, 3));
-        const glowMaterial = new THREE.PointsMaterial({
-            color: 0x6be7ff,
-            size: 0.03,
+        
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        
+        const material = new THREE.PointsMaterial({
+            color: 0x7ac7ff,
+            size: 0.06,
             transparent: true,
-            opacity: 0.6
+            opacity: 0.8,
+            map: new THREE.TextureLoader().load('https://assets.codepen.io/127738/dotTexture.png'),
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
         });
-        const glowCloud = new THREE.Points(glowGeometry, glowMaterial);
-        scene.add(glowCloud);
 
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x2b6cb0, transparent: true, opacity: 0.6 });
-        const lineGeometry = new THREE.BufferGeometry();
-        const ringPoints = [];
-        for (let i = 0; i <= 64; i += 1) {
-            const angle = (i / 64) * Math.PI * 2;
-            ringPoints.push(Math.cos(angle) * 2.4, Math.sin(angle) * 2.4, 0);
-        }
-        lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(ringPoints, 3));
-        const ring = new THREE.Line(lineGeometry, lineMaterial);
-        scene.add(ring);
+        if (!material.map) material.map = null;
+
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+
+        // --- Shape Generators ---
+        const getSpherePositions = () => {
+            const arr = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const r = 2.5;
+                const phi = Math.acos(-1 + (2 * i) / particleCount);
+                const theta = Math.sqrt(particleCount * Math.PI) * phi;
+                arr[i3] = r * Math.cos(theta) * Math.sin(phi);
+                arr[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
+                arr[i3 + 2] = r * Math.cos(phi);
+            }
+            return arr;
+        };
+
+        const getHelixPositions = () => {
+            const arr = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const t = (i / particleCount) * Math.PI * 8; // 4 turns
+                const r = 1.5;
+                // Double helix offset
+                const offset = (i % 2 === 0) ? 0 : Math.PI; 
+                arr[i3] = Math.cos(t + offset) * r; // x
+                arr[i3 + 1] = (i / particleCount) * 5 - 2.5; // y spread
+                arr[i3 + 2] = Math.sin(t + offset) * r; // z
+            }
+            return arr;
+        };
+
+        const getRorschachPositions = (seed) => {
+            const arr = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                if (i % 2 === 0) {
+                    // Random seed point
+                    const x = (Math.random() * 2 - 1) * 2;
+                    const y = (Math.random() * 2 - 1) * 2;
+                    const z = (Math.random() * 2 - 1) * 1;
+                    
+                    // Filter to create blobs (simple noise check approximation)
+                    // If distance to center is too far or too close, pull it in
+                    const d = Math.sqrt(x*x + y*y + z*z);
+                    const scale = (Math.sin(d * 5 + seed) + 1.5) * 0.8;
+                    
+                    arr[i3] = x * scale;
+                    arr[i3 + 1] = y * scale;
+                    arr[i3 + 2] = z * scale;
+                } else {
+                    // Mirror X
+                    arr[i3] = -arr[i3 - 3];
+                    arr[i3 + 1] = arr[i3 - 2];
+                    arr[i3 + 2] = arr[i3 - 1];
+                }
+            }
+            return arr;
+        };
+
+        const shapes = [
+            getSpherePositions(),
+            getHelixPositions(),
+            getRorschachPositions(0),
+            getRorschachPositions(Math.PI)
+        ];
+
+        // --- Animation State ---
+        let currentShapeIndex = 0;
+        let nextShapeIndex = 1;
+        let morphProgress = 0;
+        let state = 'morph'; // 'morph', 'hold', 'disperse'
+        let stateTimer = 0;
+        
+        // Config
+        const MORPH_DURATION = 3.0; // seconds
+        const HOLD_DURATION = 2.0;
+        const DISPERSE_DURATION = 1.0;
 
         let resizeTimer = null;
         const resize = () => {
@@ -1040,37 +1105,127 @@ const AgencySections = () => {
             }, 150);
         };
 
-        // Initial size
         const { clientWidth, clientHeight } = canvas;
         renderer.setSize(clientWidth, clientHeight, false);
         camera.aspect = clientWidth / clientHeight;
         camera.updateProjectionMatrix();
         window.addEventListener('resize', resize);
 
-        // Pause when off-screen
+        const constellationTarget = canvas.parentElement || canvas;
         const constellationObserver = new IntersectionObserver(
             ([entry]) => {
+                const wasVisible = constellationVisible;
                 constellationVisible = entry.isIntersecting;
-                if (constellationVisible && !frameId) {
+                if (constellationVisible && !wasVisible) {
+                    cancelAnimationFrame(frameId);
                     frameId = requestAnimationFrame(animate);
                 }
             },
-            { threshold: 0 }
+            { threshold: 0, rootMargin: '100px' }
         );
 
         let frameId;
+        let lastTime = performance.now();
+
         const animate = () => {
             if (!constellationVisible) return;
+            
+            const now = performance.now();
+            const dt = Math.min((now - lastTime) / 1000, 0.1); // cap dt
+            lastTime = now;
+            
+            const positionAttribute = particleSystem.geometry.attributes.position;
+            const currentPositions = positionAttribute.array;
+            
             if (!prefersReducedMotion) {
-                coreGroup.rotation.z += 0.002;
-                glowCloud.rotation.z -= 0.0015;
-                ring.rotation.z += 0.001;
+                // State Machine
+                if (state === 'morph') {
+                    morphProgress += dt / MORPH_DURATION;
+                    if (morphProgress >= 1) {
+                        morphProgress = 1;
+                        state = 'hold';
+                        stateTimer = 0;
+                        currentShapeIndex = nextShapeIndex; // We arrived
+                    }
+                } else if (state === 'hold') {
+                    stateTimer += dt;
+                    if (stateTimer >= HOLD_DURATION) {
+                        state = 'disperse';
+                        stateTimer = 0;
+                    }
+                } else if (state === 'disperse') {
+                    stateTimer += dt;
+                    if (stateTimer >= DISPERSE_DURATION) {
+                        state = 'morph';
+                        morphProgress = 0;
+                        // Pick next shape
+                        nextShapeIndex = (currentShapeIndex + 1) % shapes.length;
+                    }
+                }
+
+                // Interpolation Logic
+                const startShape = shapes[currentShapeIndex];
+                const endShape = shapes[nextShapeIndex];
+
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    
+                    let tx, ty, tz; // Target X, Y, Z
+
+                    if (state === 'morph') {
+                        // Lerp between shapes with easing
+                        const t = morphProgress < 0.5 ? 2 * morphProgress * morphProgress : -1 + (4 - 2 * morphProgress) * morphProgress; // EaseInOutQuad
+                        tx = startShape[i3] * (1 - t) + endShape[i3] * t;
+                        ty = startShape[i3 + 1] * (1 - t) + endShape[i3 + 1] * t;
+                        tz = startShape[i3 + 2] * (1 - t) + endShape[i3 + 2] * t;
+                    } else if (state === 'hold') {
+                        // Just hold the current shape (startShape is now the one we morphed TO)
+                        tx = startShape[i3];
+                        ty = startShape[i3 + 1];
+                        tz = startShape[i3 + 2];
+                        
+                        // Breathing effect
+                        const breath = Math.sin(now * 0.002 + i * 0.1) * 0.05;
+                        tx += breath; ty += breath; tz += breath;
+                    } else if (state === 'disperse') {
+                        // Move outwards / chaos
+                        // Interpolate from current shape to a chaotic expanded version
+                        // Actually, let's keep it simple: Just expand outward from center
+                        const sx = startShape[i3];
+                        const sy = startShape[i3 + 1];
+                        const sz = startShape[i3 + 2];
+                        
+                        // Explosion vector
+                        const dist = Math.sqrt(sx*sx + sy*sy + sz*sz) + 0.1;
+                        const force = (stateTimer / DISPERSE_DURATION) * 2.0; // Expand up to 2x distance
+                        
+                        // Add curl noise or random spin
+                        const noise = Math.sin(i * 12.3 + now * 0.005) * 0.5;
+                        
+                        tx = sx + (sx / dist) * force + noise;
+                        ty = sy + (sy / dist) * force + noise;
+                        tz = sz + (sz / dist) * force + noise;
+                    }
+
+                    // Apply to current positions (with slight lag/smoothing for organic feel)
+                    // Simple lerp smoothing
+                    currentPositions[i3] += (tx - currentPositions[i3]) * 0.1;
+                    currentPositions[i3 + 1] += (ty - currentPositions[i3 + 1]) * 0.1;
+                    currentPositions[i3 + 2] += (tz - currentPositions[i3 + 2]) * 0.1;
+                }
+                
+                positionAttribute.needsUpdate = true;
+                
+                // Rotate the whole system slowly
+                particleSystem.rotation.y += 0.002;
+                particleSystem.rotation.z = Math.sin(now * 0.0005) * 0.1;
             }
+
             renderer.render(scene, camera);
             frameId = requestAnimationFrame(animate);
         };
 
-        constellationObserver.observe(canvas);
+        constellationObserver.observe(constellationTarget);
         animate();
 
         return () => {
@@ -1081,12 +1236,9 @@ const AgencySections = () => {
             if (frameId) {
                 cancelAnimationFrame(frameId);
             }
-            nodeGeometry.dispose();
-            nodeMaterial.dispose();
-            glowGeometry.dispose();
-            glowMaterial.dispose();
-            lineGeometry.dispose();
-            lineMaterial.dispose();
+            geometry.dispose();
+            material.dispose();
+            scene.remove(particleSystem);
             renderer.dispose();
         };
     }, []);
