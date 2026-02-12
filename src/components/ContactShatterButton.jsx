@@ -90,16 +90,22 @@ const ContactShatterButton = () => {
     // STATE LIFTED OUT OF EFFECT
     const [tree, setTree] = useState(() => generateLightningTree(WIDTH, HEIGHT));
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const isVisibleRef = useRef(true);
+    const timelineRef = useRef(null);
 
     useEffect(() => {
         const ctx = gsap.context(() => {
             const tl = gsap.timeline({
                 onComplete: () => {
+                    if (!isVisibleRef.current) return;
                     gsap.delayedCall(Math.random() * 2 + 1, () => {
-                        setTree(generateLightningTree(WIDTH, HEIGHT));
+                        if (isVisibleRef.current) {
+                            setTree(generateLightningTree(WIDTH, HEIGHT));
+                        }
                     });
                 }
             });
+            timelineRef.current = tl;
 
             // 1. SETUP
             const trunkLen = trunkRef.current.getTotalLength();
@@ -216,7 +222,26 @@ const ContactShatterButton = () => {
 
         }, containerRef);
 
-        return () => ctx.revert();
+        // Pause when off-screen
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                isVisibleRef.current = entry.isIntersecting;
+                if (timelineRef.current) {
+                    if (entry.isIntersecting) {
+                        timelineRef.current.resume();
+                    } else {
+                        timelineRef.current.pause();
+                    }
+                }
+            },
+            { threshold: 0 }
+        );
+        if (containerRef.current) observer.observe(containerRef.current);
+
+        return () => {
+            observer.disconnect();
+            ctx.revert();
+        };
     }, [tree]);
 
     return (

@@ -9,66 +9,66 @@ const SpaceBackground = () => {
 
         let width = window.innerWidth;
         let height = window.innerHeight;
+        let isVisible = true;
+        let animationId = null;
+        let resizeTimer = null;
 
         const setSize = () => {
-            width = window.innerWidth;
-            height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                canvas.width = width;
+                canvas.height = height;
+            }, 150);
         };
 
-        setSize();
+        // Initial size set (no debounce)
+        canvas.width = width;
+        canvas.height = height;
         window.addEventListener('resize', setSize);
 
         // Star properties - more subtle for darker aesthetic
-        const numStars = 250; // More visible
+        const numStars = 250;
         const stars = [];
-        const speed = 0.2; // Slightly faster
-        const depth = 1800; // Slightly less deep
+        const speed = 0.2;
+        const depth = 1800;
 
-        // Initialize stars - spread across entire screen
         for (let i = 0; i < numStars; i++) {
             stars.push({
-                x: (Math.random() - 0.5) * width * 3, // Much wider spread
-                y: (Math.random() - 0.5) * height * 3, // Much taller spread
+                x: (Math.random() - 0.5) * width * 3,
+                y: (Math.random() - 0.5) * height * 3,
                 z: Math.random() * depth,
                 o: Math.random() * 0.4 + 0.4
             });
         }
 
-        let animationId;
-
         const animate = () => {
-            // Dark background - solid fill for clean look
+            if (!isVisible) return;
+
             ctx.fillStyle = '#050505';
             ctx.fillRect(0, 0, width, height);
 
-            // Draw Stars
             ctx.fillStyle = '#FFFFFF';
 
             const cx = width / 2;
             const cy = height / 2;
 
             stars.forEach(star => {
-                // Move star towards screen (very slowly)
                 star.z -= speed;
 
-                // Reset moves to back
                 if (star.z <= 0) {
                     star.z = depth;
                     star.x = (Math.random() - 0.5) * width * 3;
                     star.y = (Math.random() - 0.5) * height * 3;
                 }
 
-                // Project 3D -> 2D with reduced scaling for less warp
                 const k = 80.0 / star.z;
                 const px = star.x * k + cx;
                 const py = star.y * k + cy;
 
                 if (px >= 0 && px <= width && py >= 0 && py <= height) {
-                    // Smaller size, less dramatic scaling
                     const size = (1 - star.z / depth) * 2;
-                    // Better visibility
                     const opacity = (1 - star.z / depth) * star.o * 0.8;
 
                     ctx.globalAlpha = opacity;
@@ -81,11 +81,32 @@ const SpaceBackground = () => {
             animationId = requestAnimationFrame(animate);
         };
 
-        animate();
+        // Only animate when visible — observe the parent section instead of the
+        // canvas itself, because the canvas has z-index:-1 which can cause
+        // IntersectionObserver to report false negatives on some mobile browsers.
+        const observeTarget = canvas.parentElement || canvas;
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                const wasVisible = isVisible;
+                isVisible = entry.isIntersecting;
+                if (isVisible && !wasVisible) {
+                    // Restart the loop — guard against duplicate rAF
+                    cancelAnimationFrame(animationId);
+                    animationId = requestAnimationFrame(animate);
+                }
+            },
+            { threshold: 0, rootMargin: '100px' }
+        );
+        observer.observe(observeTarget);
+
+        animationId = requestAnimationFrame(animate);
 
         return () => {
+            isVisible = false;
             window.removeEventListener('resize', setSize);
+            clearTimeout(resizeTimer);
             cancelAnimationFrame(animationId);
+            observer.disconnect();
         };
     }, []);
 

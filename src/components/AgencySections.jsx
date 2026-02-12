@@ -12,7 +12,7 @@ import 'swiper/css/pagination';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const ServicesCarousel = ({ items, t }) => {
+const ServicesCarousel = ({ items, t, isVisible = true }) => {
     const trackRef = useRef(null);
     const containerRef = useRef(null);
     const offsetRef = useRef(0);
@@ -46,6 +46,7 @@ const ServicesCarousel = ({ items, t }) => {
         let lastOffset = null;
 
         const animate = () => {
+            if (!isVisible) return;
             const track = trackRef.current;
             if (!track) {
                 rafRef.current = requestAnimationFrame(animate);
@@ -89,7 +90,7 @@ const ServicesCarousel = ({ items, t }) => {
 
         rafRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(rafRef.current);
-    }, [isPaused, isHovering]);
+    }, [isPaused, isHovering, isVisible]);
 
     const getStepSize = () => {
         const track = trackRef.current;
@@ -277,11 +278,6 @@ const AICapabilitiesSlider = ({ items, t }) => {
                                     <h3>{t(capability.titleKey)}</h3>
                                     <p>{t(capability.descriptionKey)}</p>
                                 </div>
-                                <div className="ai-emotions-card__footer">
-                                    <button type="button" className="ai-emotions-card__cta">
-                                        <span>{t('ai_view_more')}</span>
-                                    </button>
-                                </div>
                             </div>
                         </article>
                     </SwiperSlide>
@@ -292,7 +288,7 @@ const AICapabilitiesSlider = ({ items, t }) => {
     );
 };
 
-const TestimonialsCarousel = ({ items, t }) => {
+const TestimonialsCarousel = ({ items, t, isVisible = true }) => {
     const containerRef = useRef(null);
     const [progress, setProgress] = useState(0);
     const progressRef = useRef(0);
@@ -317,6 +313,7 @@ const TestimonialsCarousel = ({ items, t }) => {
         let lastProgress = null;
 
         const animate = () => {
+            if (!isVisible) return;
             const shouldAutoPlay = isPlaying && !isHovering && !isDownRef.current && !isArrowNudgeRef.current;
             
             // Auto-play movement
@@ -357,7 +354,7 @@ const TestimonialsCarousel = ({ items, t }) => {
 
         rafRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(rafRef.current);
-    }, [isPlaying, isHovering, normalizeProgress]);
+    }, [isPlaying, isHovering, normalizeProgress, isVisible]);
 
     const handleWheel = (event) => {
         const delta = event.deltaY * 0.02;
@@ -457,7 +454,7 @@ const TestimonialsCarousel = ({ items, t }) => {
     );
 };
 
-const TechStackLoop = ({ items, t }) => {
+const TechStackLoop = ({ items, t, isVisible = true }) => {
     const galleryRef = useRef(null);
     const trackRef = useRef(null);
     const offsetRef = useRef(0);
@@ -500,6 +497,7 @@ const TechStackLoop = ({ items, t }) => {
         let lastOffset = null;
 
         const animate = () => {
+            if (!isVisible) return;
             const track = trackRef.current;
             if (!track) {
                 rafRef.current = requestAnimationFrame(animate);
@@ -543,7 +541,7 @@ const TechStackLoop = ({ items, t }) => {
 
         rafRef.current = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(rafRef.current);
-    }, [isPlaying, isHovering]);
+    }, [isPlaying, isHovering, isVisible]);
 
     const getStepSize = () => {
         const track = trackRef.current;
@@ -635,7 +633,7 @@ const AgencySections = () => {
 
     const stats = useMemo(() => [
         { value: '50+', labelKey: 'stats_launches' },
-        { value: '12', labelKey: 'stats_weeks' },
+        { value: '12h', labelKey: 'stats_weeks' },
         { value: '98%', labelKey: 'stats_retention' },
         { value: '24/7', labelKey: 'stats_monitoring' }
     ], []);
@@ -795,6 +793,7 @@ const AgencySections = () => {
     const [statValues, setStatValues] = useState(stats.map((stat) => stat.value));
     const [processVisible, setProcessVisible] = useState(false);
     const [railAwake, setRailAwake] = useState(false);
+    const [visibleSections, setVisibleSections] = useState({});
     const railTimerRef = useRef(null);
     const wakeRail = useCallback(() => {
         setRailAwake(true);
@@ -827,6 +826,15 @@ const AgencySections = () => {
 
         const observer = new IntersectionObserver(
             (entries) => {
+                // Track visibility for pausing rAF loops
+                setVisibleSections((prev) => {
+                    const next = { ...prev };
+                    entries.forEach((entry) => {
+                        next[entry.target.id] = entry.isIntersecting;
+                    });
+                    return next;
+                });
+
                 const visible = entries.filter((entry) => entry.isIntersecting);
                 if (!visible.length) {
                     setActiveSection(null);
@@ -837,7 +845,7 @@ const AgencySections = () => {
                 );
                 setActiveSection(mostVisible.target.id);
             },
-            { threshold: [0.2, 0.35, 0.5, 0.65] }
+            { threshold: [0, 0.2, 0.35, 0.5, 0.65] }
         );
 
         sections.forEach((section) => observer.observe(section));
@@ -972,9 +980,12 @@ const AgencySections = () => {
         }
 
         const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        const isTouchDevice = 'ontouchstart' in window;
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: !isTouchDevice, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+        let constellationVisible = true;
         camera.position.z = 6;
 
         const coreGroup = new THREE.Group();
@@ -1018,18 +1029,38 @@ const AgencySections = () => {
         const ring = new THREE.Line(lineGeometry, lineMaterial);
         scene.add(ring);
 
+        let resizeTimer = null;
         const resize = () => {
-            const { clientWidth, clientHeight } = canvas;
-            renderer.setSize(clientWidth, clientHeight, false);
-            camera.aspect = clientWidth / clientHeight;
-            camera.updateProjectionMatrix();
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const { clientWidth, clientHeight } = canvas;
+                renderer.setSize(clientWidth, clientHeight, false);
+                camera.aspect = clientWidth / clientHeight;
+                camera.updateProjectionMatrix();
+            }, 150);
         };
 
-        resize();
+        // Initial size
+        const { clientWidth, clientHeight } = canvas;
+        renderer.setSize(clientWidth, clientHeight, false);
+        camera.aspect = clientWidth / clientHeight;
+        camera.updateProjectionMatrix();
         window.addEventListener('resize', resize);
+
+        // Pause when off-screen
+        const constellationObserver = new IntersectionObserver(
+            ([entry]) => {
+                constellationVisible = entry.isIntersecting;
+                if (constellationVisible && !frameId) {
+                    frameId = requestAnimationFrame(animate);
+                }
+            },
+            { threshold: 0 }
+        );
 
         let frameId;
         const animate = () => {
+            if (!constellationVisible) return;
             if (!prefersReducedMotion) {
                 coreGroup.rotation.z += 0.002;
                 glowCloud.rotation.z -= 0.0015;
@@ -1039,10 +1070,14 @@ const AgencySections = () => {
             frameId = requestAnimationFrame(animate);
         };
 
+        constellationObserver.observe(canvas);
         animate();
 
         return () => {
+            constellationVisible = false;
+            constellationObserver.disconnect();
             window.removeEventListener('resize', resize);
+            clearTimeout(resizeTimer);
             if (frameId) {
                 cancelAnimationFrame(frameId);
             }
@@ -1154,7 +1189,7 @@ const AgencySections = () => {
                             <div className="constellation-glow" />
                         </div>
                     </div>
-                    <ServicesCarousel items={services} t={t} />
+                    <ServicesCarousel items={services} t={t} isVisible={!!visibleSections.services} />
                 </div>
             </section>
 
@@ -1180,7 +1215,7 @@ const AgencySections = () => {
                         </h2>
                         <p className="section-lead">{t('stack_lead')}</p>
                     </div>
-                    <TechStackLoop items={techStack} t={t} />
+                    <TechStackLoop items={techStack} t={t} isVisible={!!visibleSections.stack} />
                 </div>
             </section>
 
@@ -1228,7 +1263,7 @@ const AgencySections = () => {
                         </h2>
                         <p className="section-lead">{t('testimonials_lead')}</p>
                     </div>
-                    <TestimonialsCarousel items={testimonials} t={t} />
+                    <TestimonialsCarousel items={testimonials} t={t} isVisible={!!visibleSections.testimonials} />
                 </div>
             </section>
 

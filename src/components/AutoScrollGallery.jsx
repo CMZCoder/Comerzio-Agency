@@ -2,28 +2,32 @@ import React, { useRef, useEffect, useState } from 'react';
 
 const AutoScrollGallery = ({ images, title = 'Project Gallery' }) => {
     const scrollRef = useRef(null);
-    const scrollPosRef = useRef(0); // Track position without re-renders
+    const containerRef = useRef(null);
+    const scrollPosRef = useRef(0);
     const [isHovered, setIsHovered] = useState(false);
-    const speed = 0.8; // Slightly slower for elegance
+    const speed = 0.8;
+    const isVisibleRef = useRef(false);
 
     useEffect(() => {
         let animationFrameId;
+        const container = containerRef.current;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => { isVisibleRef.current = entry.isIntersecting; },
+            { threshold: 0 }
+        );
+        if (container) observer.observe(container);
 
         const animate = () => {
-            // Limit to ~60fps if needed, but RAF is generally good.
-            // We check if we should scroll
-            if (!isHovered && scrollRef.current) {
+            if (!isHovered && isVisibleRef.current && scrollRef.current) {
                 const { scrollHeight, clientHeight } = scrollRef.current;
 
-                // Only scroll if content is scrollable
                 if (scrollHeight > clientHeight) {
                     scrollPosRef.current += speed;
 
-                    // Loop logic: assuming we have 2 sets of images
-                    // If we pass the halfway point (end of first set), wrap around
                     const halfway = scrollHeight / 2;
                     if (scrollPosRef.current >= halfway) {
-                        scrollPosRef.current -= halfway; // Seamless wrap
+                        scrollPosRef.current -= halfway;
                     }
 
                     if (scrollRef.current) {
@@ -36,7 +40,10 @@ const AutoScrollGallery = ({ images, title = 'Project Gallery' }) => {
 
         animationFrameId = requestAnimationFrame(animate);
 
-        return () => cancelAnimationFrame(animationFrameId);
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+            observer.disconnect();
+        };
     }, [isHovered]);
 
     // Handle manual scroll to sync our ref
@@ -61,6 +68,7 @@ const AutoScrollGallery = ({ images, title = 'Project Gallery' }) => {
     return (
         <div
             className="auto-scroll-container"
+            ref={containerRef}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >

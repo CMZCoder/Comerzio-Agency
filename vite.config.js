@@ -18,7 +18,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: undefined,
+        manualChunks(id) {
+          if (id.includes('three')) return 'vendor-three';
+          if (id.includes('gsap')) return 'vendor-gsap';
+          if (id.includes('framer-motion')) return 'vendor-framer';
+          if (id.includes('swiper')) return 'vendor-swiper';
+          if (id.includes('node_modules')) return 'vendor';
+        },
       },
     },
   },

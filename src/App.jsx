@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail, ArrowUp, Menu, X } from 'lucide-react';
+import { Mail, ArrowUp } from 'lucide-react';
 import LanguageSelector from './components/LanguageSelector';
 import Hero from './components/Hero';
 import AgencySections from './components/AgencySections';
@@ -16,19 +16,23 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   React.useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      const header = document.querySelector('.app-header');
-      if (window.scrollY > 50) {
-        header?.classList.add('scrolled');
-      } else {
-        header?.classList.remove('scrolled');
-      }
-      
-      // Show scroll-to-top button after scrolling down 400px
-      setShowScrollTop(window.scrollY > 400);
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const header = document.querySelector('.app-header');
+        if (window.scrollY > 50) {
+          header?.classList.add('scrolled');
+        } else {
+          header?.classList.remove('scrolled');
+        }
+        setShowScrollTop(window.scrollY > 400);
+        ticking = false;
+      });
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -104,7 +108,9 @@ function App() {
             }}
           >
             <div className="logo">
-              C<span className="ring-of-fire">O</span>MMERZI<span className="ring-of-fire">O</span>
+              {'COMMERZIO'.split('').map((char, i) => (
+                <span key={i} className="logo-letter" style={{ '--i': i }}>{char}</span>
+              ))}
             </div>
           </div>
           
@@ -141,14 +147,14 @@ function App() {
             
             {/* Hamburger Menu Button - Mobile Only */}
             <button 
-              className="hamburger-btn"
+              className={`hamburger-btn ${mobileMenuOpen ? 'is-active' : ''}`}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
             >
-              <span className="hamburger-icon">
-                {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-              </span>
+              <span className="hamburger-bar" />
+              <span className="hamburger-bar" />
+              <span className="hamburger-bar" />
             </button>
           </div>
         </div>
