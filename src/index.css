@@ -1218,11 +1218,11 @@ h1 {
 }
 
 .constellation-canvas canvas {
-  width: 140%;
-  height: 140%;
+  width: 220%;
+  height: 220%;
   position: absolute;
-  top: -20%;
-  left: -20%;
+  top: -60%;
+  left: -60%;
   display: block;
 }
 

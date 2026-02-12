@@ -986,12 +986,12 @@ const AgencySections = () => {
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
         let constellationVisible = true;
-        camera.position.z = 6;
+        camera.position.z = 9;
 
         // Symbiosis/Morphing Effect: 
         // Particles transition between distinct shapes (Sphere, DNA, Rorschach)
         // with a fluid dispersion phase in between, creating a true symbiotic organism feel.
-        const particleCount = 1200; // High density for better shape definition
+        const particleCount = 1600; // High density for better shape definition
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         
@@ -1032,54 +1032,202 @@ const AgencySections = () => {
             return arr;
         };
 
-        const getHelixPositions = () => {
+        // --- Shape Library ---
+        const createShape = (getPoint) => {
             const arr = new Float32Array(particleCount * 3);
             for (let i = 0; i < particleCount; i++) {
                 const i3 = i * 3;
-                const t = (i / particleCount) * Math.PI * 8; // 4 turns
-                const r = 1.5;
-                // Double helix offset
-                const offset = (i % 2 === 0) ? 0 : Math.PI; 
-                arr[i3] = Math.cos(t + offset) * r; // x
-                arr[i3 + 1] = (i / particleCount) * 5 - 2.5; // y spread
-                arr[i3 + 2] = Math.sin(t + offset) * r; // z
-            }
-            return arr;
-        };
-
-        const getRorschachPositions = (seed) => {
-            const arr = new Float32Array(particleCount * 3);
-            for (let i = 0; i < particleCount; i++) {
-                const i3 = i * 3;
-                if (i % 2 === 0) {
-                    // Random seed point
-                    const x = (Math.random() * 2 - 1) * 2;
-                    const y = (Math.random() * 2 - 1) * 2;
-                    const z = (Math.random() * 2 - 1) * 1;
-                    
-                    // Filter to create blobs (simple noise check approximation)
-                    // If distance to center is too far or too close, pull it in
-                    const d = Math.sqrt(x*x + y*y + z*z);
-                    const scale = (Math.sin(d * 5 + seed) + 1.5) * 0.8;
-                    
-                    arr[i3] = x * scale;
-                    arr[i3 + 1] = y * scale;
-                    arr[i3 + 2] = z * scale;
-                } else {
-                    // Mirror X
-                    arr[i3] = -arr[i3 - 3];
-                    arr[i3 + 1] = arr[i3 - 2];
-                    arr[i3 + 2] = arr[i3 - 1];
-                }
+                // Parametric UV mapping
+                const u = (Math.random() * Math.PI * 2); 
+                const v = (Math.random() * Math.PI * 2); // Random distribution smoother for organic shapes
+                // Alternately, grid based:
+                // const u = (i / particleCount) * Math.PI * 2;
+                // const v = ((i % 50) / 50) * Math.PI * 2;
+                
+                const { x, y, z } = getPoint(u, v, i);
+                arr[i3] = x; arr[i3 + 1] = y; arr[i3 + 2] = z;
             }
             return arr;
         };
 
         const shapes = [
-            getSpherePositions(),
-            getHelixPositions(),
-            getRorschachPositions(0),
-            getRorschachPositions(Math.PI)
+            // 1. Sphere
+            createShape((u, v) => {
+                const r = 2.5;
+                return { x: r * Math.sin(u) * Math.cos(v), y: r * Math.sin(u) * Math.sin(v), z: r * Math.cos(u) };
+            }),
+            // 2. Cube
+            createShape((u, v, i) => {
+                const face = Math.floor(Math.random() * 6);
+                const a = Math.random() * 4 - 2;
+                const b = Math.random() * 4 - 2;
+                if (face===0) return {x:2, y:a, z:b};
+                if (face===1) return {x:-2, y:a, z:b};
+                if (face===2) return {x:a, y:2, z:b};
+                if (face===3) return {x:a, y:-2, z:b};
+                if (face===4) return {x:a, y:b, z:2};
+                return {x:a, y:b, z:-2};
+            }),
+            // 3. Torus
+            createShape((u, v) => {
+                const R=2.2, r=0.8;
+                return { x: (R+r*Math.cos(v))*Math.cos(u), y: (R+r*Math.cos(v))*Math.sin(u), z: r*Math.sin(v) };
+            }),
+            // 4. Helix (DNA)
+            createShape((u, v, i) => {
+                const t = (i/particleCount)*Math.PI*8;
+                const r = 1.5;
+                const off = (i%2===0)?0:Math.PI;
+                return { x: Math.cos(t+off)*r, y: (i/particleCount)*6-3, z: Math.sin(t+off)*r };
+            }),
+            // 5. Galaxy Spiral
+            createShape((u, v, i) => {
+                const arms=3, arm=i%arms;
+                const r = Math.random()*3.5;
+                const ang = (arm/arms)*Math.PI*2 + r*2.5;
+                const noise = (Math.random()-0.5)*0.5;
+                return { x: Math.cos(ang)*r+noise, y: Math.sin(ang)*r+noise, z: (Math.random()-0.5)*0.5 };
+            }),
+            // 6. Torus Knot (p=2, q=3)
+            createShape((u) => {
+                const p=2, q=3;
+                const r = 0.8 + 1.2 * Math.cos(q*u); 
+                return { x: r*Math.cos(p*u), y: r*Math.sin(p*u), z: -Math.sin(q*u) };
+            }),
+             // 7. Torus Knot (p=3, q=4)
+             createShape((u) => {
+                const p=3, q=4;
+                const r = 1.0 + 1.0 * Math.cos(q*u);
+                return { x: r*Math.cos(p*u), y: r*Math.sin(p*u), z: -Math.sin(q*u) };
+            }),
+            // 8. Cone
+            createShape((u, v) => {
+                const h = 4.0; 
+                const r = (1 - v/(2*Math.PI)) * 2; // Taper
+                const y = (v/(2*Math.PI)) * h - h/2;
+                return { x: r*Math.cos(u), y: y, z: r*Math.sin(u) };
+            }),
+            // 9. Klein Bottle (Figure-8)
+            createShape((u, v) => {
+                const r = 2.0; // Scale
+                // Domain 0..2PI
+                const cosU = Math.cos(u), sinU = Math.sin(u);
+                const cosV = Math.cos(v/2), sinV = Math.sin(v/2); // Half v for single twist
+                // Need standard parametric. Using simple Figure-8 immersion
+                // x = (r + cos(u/2) * sin(v) - sin(u/2) * sin(2v)) * cos(u)
+                // Simplified bottle:
+                const R=1.5, P=0.5;
+                return {
+                    x: (R + Math.cos(u/2)*Math.sin(v) - Math.sin(u/2)*Math.sin(2*v)) * Math.cos(u),
+                    y: (R + Math.cos(u/2)*Math.sin(v) - Math.sin(u/2)*Math.sin(2*v)) * Math.sin(u),
+                    z: Math.sin(u/2)*Math.sin(v) + Math.cos(u/2)*Math.sin(2*v)
+                };
+            }),
+            // 10. Mobius Strip
+            createShape((u, v) => {
+                // u: 0..2PI, v: -1..1
+                const w = (v / (Math.PI*2)) * 2 - 1; 
+                const R = 2.0;
+                return {
+                    x: (R + w/2 * Math.cos(u/2)) * Math.cos(u),
+                    y: (R + w/2 * Math.cos(u/2)) * Math.sin(u),
+                    z: w/2 * Math.sin(u/2)
+                };
+            }),
+            // 11. Superellipsoid (Star)
+            createShape((u, v) => {
+                const n1=0.3, n2=0.3; // pointy
+                const rx=2.5, ry=2.5, rz=2.5;
+                const cu = Math.cos(u), su = Math.sin(u);
+                const cv = Math.cos(v), sv = Math.sin(v);
+                const sgn = (x)=>x>0?1:(x<0?-1:0);
+                const p = (val, n) => sgn(val) * Math.pow(Math.abs(val), n);
+                
+                return {
+                    x: rx * p(cv, n1) * p(cu, n2),
+                    y: ry * p(cv, n1) * p(su, n2),
+                    z: rz * p(sv, n1)
+                };
+            }),
+            // 12. Superellipsoid (Rounded Box)
+            createShape((u, v) => {
+                const n1=4, n2=4; // square
+                const rx=2, ry=2, rz=2;
+                const cu = Math.cos(u), su = Math.sin(u);
+                const cv = Math.cos(v), sv = Math.sin(v);
+                const sgn = (x)=>x>0?1:(x<0?-1:0);
+                const p = (val, n) => sgn(val) * Math.pow(Math.abs(val), n);
+                return {
+                    x: rx * p(cv, n1) * p(cu, n2),
+                    y: ry * p(cv, n1) * p(su, n2),
+                    z: rz * p(sv, n1)
+                };
+            }),
+             // 13. Octahedron (sampled positions)
+             createShape(() => {
+                // Random point on octahedron surface involves selecting a face and random barycentric coords
+                // Simplification using sphere -> normalize with L1 norm
+                const x = Math.random()*2-1, y = Math.random()*2-1, z = Math.random()*2-1;
+                const d = Math.abs(x) + Math.abs(y) + Math.abs(z);
+                const s = 3.0 / d; // Scale size
+                return {x:x*s, y:y*s, z:z*s};
+            }),
+            // 14. Tetrahedron
+            createShape(() => {
+                // 4 vertices: (1,1,1), (1,-1,-1), (-1,1,-1), (-1,-1,1)
+                // Interpolate
+               const u = Math.random(), v=Math.random(), w=Math.random();
+               if(u+v+w > 1) { /* Fold */ }
+               // Simple random on sphere -> push to corners?
+               // Let's use basic math:
+               let x = Math.random()*2-1;
+               let y = Math.random()*2-1;
+               let z = Math.random()*2-1;
+               // Project to tetrahedron surface... complex.
+               // Approximation: Pyramid
+               const h = 3;
+               const r = (1 - (y+1.5)/h) * 2;
+               return { x: r*Math.sin(x*Math.PI*2), y:y*2, z: r*Math.cos(x*Math.PI*2) }
+            }),
+            // 15. Dini's Surface (Twisted pseudosphere)
+            createShape((u, v) => {
+                // u: 0..4PI, v: 0.1..2
+                u *= 2; v = (v/(Math.PI*2)) * 1.9 + 0.1;
+                const a=1, b=0.2;
+                const x = a * Math.cos(u) * Math.sin(v);
+                const y = a * Math.cos(v) + Math.log(Math.tan(v/2)) + b*u;
+                const z = a * Math.sin(u) * Math.sin(v);
+                 // Swap Y/Z for orientation
+                return {x:x*1.5, y:z*1.5, z:y*0.8}; // flatten height
+            }),
+             // 16. Seashell
+             createShape((u,v)=>{
+                // u: 0..2pi, v: 0..2pi ... need spiral
+                const t = u * 4; // Turns
+                const r = 1 - t/(Math.PI*8);
+                return {
+                     x: 0.2*t * Math.cos(t) * (1+Math.cos(v)),
+                     y: 0.2*t * Math.sin(t) * (1+Math.cos(v)),
+                     z: 0.2*t * Math.sin(v) + t*0.5 - 2
+                }
+             }),
+             // 17. Hyperboloid
+             createShape((u, v) => {
+                 const h = (v/Math.PI - 1) * 2;
+                 const r = Math.sqrt(1 + h*h) * 0.8;
+                 return { x: r*Math.cos(u), y: h*1.5, z: r*Math.sin(u) };
+             }),
+            // 18-20. Rorschach variants (Procedural blobs)
+            createShape((u,v,i) => { // Blob 1
+                const x = (Math.random()*2-1)*2, y=(Math.random()*2-1)*2, z=(Math.random()*2-1);
+                const d=Math.sqrt(x*x+y*y+z*z); const s=(Math.sin(d*6)+1.5)*0.8;
+                return {x:x*s, y:y*s, z:z*s};
+            }),
+             createShape((u,v,i) => { // Blob 2
+                const x = (Math.random()*2-1)*2, y=(Math.random()*2-1)*2, z=(Math.random()*2-1);
+                const d=x*x+y*y+z*z; const s=(Math.cos(d*3)+1.2)*0.9;
+                return {x:x*s, y:y*s, z:z*s};
+            })
         ];
 
         // --- Animation State ---
