@@ -21,6 +21,42 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+// Load SMTP config
+$configFile = __DIR__ . '/config.php';
+if (!file_exists($configFile)) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Server configuration missing. Please contact the administrator.']);
+    exit();
+}
+$config = require $configFile;
+
+// Load PHPMailer via Composer autoload
+// On Hostinger, vendor/ is at the repo root (one level above dist/)
+$autoloadPaths = [
+    __DIR__ . '/vendor/autoload.php',
+    __DIR__ . '/../vendor/autoload.php',
+    dirname(__DIR__) . '/vendor/autoload.php',
+];
+
+$autoloaded = false;
+foreach ($autoloadPaths as $path) {
+    if (file_exists($path)) {
+        require_once $path;
+        $autoloaded = true;
+        break;
+    }
+}
+
+if (!$autoloaded) {
+    http_response_code(500);
+    echo json_encode(['error' => 'PHPMailer not installed. Run: composer require phpmailer/phpmailer']);
+    exit();
+}
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
+
 // Get JSON input
 $input = file_get_contents('php://input');
 $data = json_decode($input, true);
@@ -52,51 +88,71 @@ if (strlen($message) < 20) {
     exit();
 }
 
-// Email configuration
-$to = 'info@Comerzio.online';
-$subject = "New Contact Request from $name";
+// ======== SEND NOTIFICATION EMAIL TO ADMIN ========
+try {
+    $mail = new PHPMailer(true);
 
-// HTML email body
-$htmlBody = "
-<html>
-<head>
-    <style>
-        body { font-family: Arial, sans-serif; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        h2 { color: #333; }
-        .field { margin-bottom: 10px; }
-        .label { font-weight: bold; color: #555; }
-        .message { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-top: 10px; }
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <h2>New Contact Request</h2>
-        <div class='field'><span class='label'>Name:</span> $name</div>
-        <div class='field'><span class='label'>Email:</span> $email</div>
-        <div class='field'><span class='label'>Phone:</span> $phone</div>
-        <div class='message'>
-            <span class='label'>Message:</span><br><br>
-            " . nl2br($message) . "
+    // SMTP Configuration
+    $mail->isSMTP();
+    $mail->Host = $config['smtp_host'];
+    $mail->SMTPAuth = true;
+    $mail->Username = $config['smtp_user'];
+    $mail->Password = $config['smtp_password'];
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    $mail->Port = $config['smtp_port'];
+
+    // Email settings
+    $mail->setFrom($config['email_from'], 'Comerzio Website');
+    $mail->addAddress($config['email_to']);
+    $mail->addReplyTo($email, $name);
+
+    $mail->isHTML(true);
+    $mail->Subject = "New Contact Request from $name";
+    $mail->Body = "
+    <html>
+    <head>
+        <style>
+            body { font-family: Arial, sans-serif; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            h2 { color: #333; }
+            .field { margin-bottom: 10px; }
+            .label { font-weight: bold; color: #555; }
+            .message { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-top: 10px; }
+        </style>
+    </head>
+    <body>
+        <div class='container'>
+            <h2>New Contact Request</h2>
+            <div class='field'><span class='label'>Name:</span> $name</div>
+            <div class='field'><span class='label'>Email:</span> $email</div>
+            <div class='field'><span class='label'>Phone:</span> $phone</div>
+            <div class='message'>
+                <span class='label'>Message:</span><br><br>
+                " . nl2br($message) . "
+            </div>
         </div>
-    </div>
-</body>
-</html>
-";
+    </body>
+    </html>";
 
-// Email headers
-$headers = "MIME-Version: 1.0\r\n";
-$headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-$headers .= "From: Comerzio Website <noreply@Comerzio.online>\r\n";
-$headers .= "Reply-To: sales@Comerzio.online\r\n";
+    $mail->send();
 
-// Send main email
-$mailSent = mail($to, $subject, $htmlBody, $headers);
+    // ======== SEND CONFIRMATION EMAIL TO USER ========
+    $confirm = new PHPMailer(true);
 
-if ($mailSent) {
-    // Send confirmation email to user
-    $confirmSubject = "We received your message - Comerzio";
-    $confirmBody = "
+    $confirm->isSMTP();
+    $confirm->Host = $config['smtp_host'];
+    $confirm->SMTPAuth = true;
+    $confirm->Username = $config['smtp_user'];
+    $confirm->Password = $config['smtp_password'];
+    $confirm->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    $confirm->Port = $config['smtp_port'];
+
+    $confirm->setFrom($config['email_from'], 'Comerzio');
+    $confirm->addAddress($email, $name);
+
+    $confirm->isHTML(true);
+    $confirm->Subject = "We received your message - Comerzio";
+    $confirm->Body = "
     <html>
     <head>
         <style>
@@ -118,19 +174,15 @@ if ($mailSent) {
             <p>Best regards,<br>The Comerzio Team</p>
         </div>
     </body>
-    </html>
-    ";
+    </html>";
 
-    $confirmHeaders = "MIME-Version: 1.0\r\n";
-    $confirmHeaders .= "Content-Type: text/html; charset=UTF-8\r\n";
-    $confirmHeaders .= "From: Comerzio <noreply@Comerzio.online>\r\n";
-
-    mail($email, $confirmSubject, $confirmBody, $confirmHeaders);
+    $confirm->send();
 
     http_response_code(200);
     echo json_encode(['success' => true, 'message' => 'Message sent successfully!']);
-} else {
+
+} catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to send message. Please try again later.']);
+    echo json_encode(['error' => 'Failed to send message. Please try again later.', 'debug' => $mail->ErrorInfo]);
 }
 ?>

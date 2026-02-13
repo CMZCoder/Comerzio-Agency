@@ -78,8 +78,8 @@ const ContactForm = ({ onClose }) => {
         setIsSubmitting(true);
 
         try {
-            // POST to Express API endpoint
-            const response = await fetch('/api/contact', {
+            // POST to PHP handler (Apache/PHP hosting)
+            const response = await fetch('/contact.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

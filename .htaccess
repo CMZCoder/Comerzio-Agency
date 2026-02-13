@@ -1,0 +1,6 @@
+# Root .htaccess — redirect all requests to dist/ folder
+RewriteEngine On
+
+# If not already in dist/, rewrite to dist/
+RewriteCond %{REQUEST_URI} !^/dist/
+RewriteRule ^(.*)$ dist/$1 [L]
