@@ -71,7 +71,7 @@ const sanitizeInput = (str) => {
 
 // Middleware
 app.use(cors({
-    origin: isProduction ? ['https://agency.COMERZIO.online', 'https://COMERZIO.online'] : true,
+    origin: isProduction ? ['https://agency.comerzio.ch', 'https://comerzio.ch'] : true,
     methods: ['GET', 'POST'],
     credentials: true
 }));
@@ -260,7 +260,7 @@ ${message}
         await transporter.sendMail({
             from: `"COMERZIO Agentur" <${process.env.EMAIL_FROM}>`,
             to: email,
-            replyTo: 'sales@COMERZIO.online',
+            replyTo: 'sales@comerzio.ch',
             subject: '✨ We received your message - COMERZIO',
             html: `
 <!DOCTYPE html>
@@ -341,9 +341,9 @@ ${message}
                     <tr>
                         <td style="background: rgba(0,0,0,0.3); padding: 32px 40px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05);">
                             <p style="margin: 0 0 16px; color: #ffffff; font-size: 14px; font-weight: 600;">Need urgent assistance?</p>
-                            <a href="mailto:sales@COMERZIO.online" style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">Reply to this email</a>
+                            <a href="mailto:sales@comerzio.ch" style="display: inline-block; background: linear-gradient(135deg, #3B82F6 0%, #1d4ed8 100%); color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;">Reply to this email</a>
                             <p style="margin: 24px 0 0; color: #6b7280; font-size: 12px;">
-                                <a href="https://agency.COMERZIO.online" style="color: #6b7280; text-decoration: none;">agency.COMERZIO.online</a>
+                                <a href="https://agency.comerzio.ch" style="color: #6b7280; text-decoration: none;">agency.comerzio.ch</a>
                             </p>
                         </td>
                     </tr>
