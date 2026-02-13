@@ -45,9 +45,9 @@ test.describe('Comerzio Agency Website', () => {
       await expect(logo).toBeVisible();
       await expect(logo).toContainText('COMERZIO');
       
-      // Check navigation buttons - there are 6 nav links
+      // Check navigation buttons - there are 7 nav links
       const navButtons = page.locator('.header-nav .nav-link');
-      await expect(navButtons).toHaveCount(6);
+      await expect(navButtons).toHaveCount(7);
       
       await takeScreenshot(page, '02-header-navigation');
     });

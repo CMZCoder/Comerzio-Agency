@@ -18,7 +18,7 @@ test.describe('Quick Smoke Tests', () => {
   test('header navigation is visible', async ({ page }) => {
     await page.goto('/');
     
-    const logo = page.locator('.logo');
+    const logo = page.locator('.header-brand .logo');
     await expect(logo).toBeVisible();
     await expect(logo).toContainText('COMERZIO');
     
