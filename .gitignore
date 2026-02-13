@@ -15,6 +15,7 @@ test-results/
 coverage/
 *.log
 config.php
+config.example.php
 vendor/
 
 # Editor directories and files
